@@ -68,7 +68,7 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 
 - 描述、change notes、图标都来自 `plugin.xml`，改这些不需要重新上传 zip 之外的东西
 - 截图和 tagline 在 Marketplace 网页上单独维护，与 `plugin.xml` 无关
-- `untilBuild` 当前是 `262.*`：263 正式版发布后插件会显示不兼容，届时需要发版放宽
+- 故意不设 `untilBuild`：verifyPlugin 实测连 263 都 Compatible，设了上限反而会让升级 IDE 的用户看到「不兼容」，直到恰好发新版
 - Marketplace 会自动为插件签名，不需要自备证书（`signPlugin` 在没有证书时会跳过）
 
 ## 已验证

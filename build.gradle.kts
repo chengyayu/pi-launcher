@@ -41,7 +41,11 @@ kotlin {
 tasks {
     patchPluginXml {
         sinceBuild.set("243")
-        untilBuild.set("262.*")
+        // No upper bound on purpose. verifyPlugin reports the plugin as
+        // compatible with the newest IDE it can resolve, and a pinned
+        // until-build turns into a hard "incompatible" wall for users on a
+        // newer IDE until a new version happens to be published.
+        untilBuild.set(provider { null })
     }
 
     buildSearchableOptions {
