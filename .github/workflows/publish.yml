@@ -1,0 +1,34 @@
+name: Publish Plugin
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Test
+        run: ./gradlew test
+
+      - name: Build Plugin
+        run: ./gradlew buildPlugin
+
+      - name: Verify Plugin
+        run: ./gradlew verifyPlugin
+
+      - name: Publish Plugin
+        run: ./gradlew publishPlugin
+        env:
+          PUBLISH_TOKEN: ${{ secrets.JETBRAINS_PUBLISH_TOKEN }}

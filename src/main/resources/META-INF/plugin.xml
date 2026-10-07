@@ -1,0 +1,116 @@
+<idea-plugin>
+    <id>com.chengyayu.pi-launcher</id>
+    <name>Pi Launcher</name>
+    <vendor email="38727061+chengyayu@users.noreply.github.com" url="https://github.com/chengyayu/pi-launcher">chengyayu</vendor>
+
+    <description><![CDATA[
+    <h2>Pi Launcher</h2>
+    <p>
+        One-click <a href="https://pi.dev">Pi coding agent</a> launcher for JetBrains IDEs — keeps the Pi CLI one click away inside the IDE.
+    </p>
+
+    <blockquote>
+        <b>Important:</b> Install the Pi CLI separately before using this plugin.<br/>
+        <code>npm i -g @earendil-works/pi-coding-agent</code> or visit <a href="https://pi.dev">pi.dev</a>
+    </blockquote>
+
+    <h3>Features</h3>
+    <ul>
+        <li><b>One-click launch</b> from the toolbar</li>
+        <li><b>Integrated terminal</b> that opens a dedicated "Pi" tab inside the Terminal tool window</li>
+        <li><b>Send to Pi</b> — select code, right-click, and send file reference (<code>@path/file.go#L10-25</code>) to Pi's input</li>
+        <li><b>Status bar state</b> that follows Pi when it stops</li>
+        <li><b>Silent</b> — no diff tabs, no completion balloons, no exit reports</li>
+        <li><b>Optional auto-open</b> of modified files (off by default)</li>
+        <li><b>Flexible configuration</b> for models, thinking levels, and launch options</li>
+    </ul>
+
+    <h3>Usage</h3>
+    <h4>Quick Start</h4>
+    <ol>
+        <li>Click the <b>pi</b> button in the main toolbar.</li>
+        <li>A new "Pi" tab opens in the Terminal window and runs <code>pi</code> automatically.</li>
+        <li>Select code, right-click, then <b>Send to Pi</b> to add file context to your prompt.</li>
+    </ol>
+
+    <h4>Configuration</h4>
+    <p>Open <b>Settings, Tools, Pi Launcher</b> to pick the model, thinking level and launch options.</p>
+
+    <h3>Keyboard Shortcuts</h3>
+    <ul>
+        <li><code>Ctrl+Shift+Backquote</code> — Launch or focus Pi</li>
+        <li><code>Ctrl+Shift+L</code> — Send selection to Pi</li>
+    </ul>
+
+    <h3>Supported IDEs</h3>
+    <p>Works with all JetBrains IDEs: IntelliJ IDEA, GoLand, PyCharm, WebStorm, PhpStorm, CLion, Rider, RubyMine, and more.</p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>0.1.0</h3>
+    <ul>
+        <li>First release as an independent plugin</li>
+        <li>One-click launch into a Terminal tab, Send to Pi, status bar state</li>
+        <li>No diff tabs, no completion balloons and no exit reports</li>
+        <li>Auto-open is off by default</li>
+    </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceImplementation="com.chengyayu.pilauncher.services.PiSessionService"/>
+        <projectService serviceImplementation="com.chengyayu.pilauncher.services.PiFileWatcher"/>
+
+        <applicationService serviceImplementation="com.chengyayu.pilauncher.settings.PiSettings"/>
+
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.chengyayu.pilauncher.settings.PiSettingsConfigurable"
+                id="com.chengyayu.pilauncher.settings"
+                displayName="Pi Launcher"/>
+
+        <statusBarWidgetFactory
+                id="PiLauncherStatus"
+                implementation="com.chengyayu.pilauncher.services.PiStatusWidgetFactory"
+                order="after position"/>
+
+        <notificationGroup id="Pi Launcher"
+                           displayType="BALLOON"
+                           toolWindowId="Terminal"/>
+    </extensions>
+
+    <actions>
+        <!-- One action: toolbar button + keyboard shortcut -->
+        <action id="Pi.Launch"
+                class="com.chengyayu.pilauncher.actions.LaunchPiAction"
+                text="Launch Pi"
+                description="Start Pi in the Terminal window, or focus it when already running"
+                icon="/icons/pi.svg">
+            <add-to-group group-id="MainToolbarRight" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift BACK_QUOTE"/>
+        </action>
+
+        <!-- Send selection from editor -->
+        <action id="Pi.SendSelection"
+                class="com.chengyayu.pilauncher.actions.SendSelectionAction"
+                text="Send to Pi"
+                description="Send selected code reference to Pi"
+                icon="/icons/pi.svg">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift L"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ConsoleEditorPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Send file(s) from Project View / Editor Tab -->
+        <action id="Pi.SendFile"
+                class="com.chengyayu.pilauncher.actions.SendFileToPiAction"
+                text="Send to Pi"
+                description="Send file reference to Pi"
+                icon="/icons/pi.svg">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
