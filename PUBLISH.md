@@ -71,6 +71,13 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 - 故意不设 `untilBuild`：verifyPlugin 实测连 263 都 Compatible，设了上限反而会让升级 IDE 的用户看到「不兼容」，直到恰好发新版
 - Marketplace 会自动为插件签名，不需要自备证书（`signPlugin` 在没有证书时会跳过）
 
+## 换版本时不要删旧版本
+
+在编辑页删除某条版本记录时，如果它是**唯一的版本**，Marketplace 会把**整个插件**一并删除
+（插件页直接 404），连截图和 Vendor 关联都要重来。
+
+要换内容就直接上传**新的版本号**，旧版本让它留着 —— 用户在 IDE 里只会装到最新的那条。
+
 ## 已验证
 
 `publish.yml` 已用 `workflow_dispatch` 实测过一次（run 37577588313）：
