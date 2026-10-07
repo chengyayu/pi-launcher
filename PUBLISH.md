@@ -70,3 +70,19 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 - 截图和 tagline 在 Marketplace 网页上单独维护，与 `plugin.xml` 无关
 - `untilBuild` 当前是 `262.*`：263 正式版发布后插件会显示不兼容，届时需要发版放宽
 - Marketplace 会自动为插件签名，不需要自备证书（`signPlugin` 在没有证书时会跳过）
+
+## 已验证
+
+`publish.yml` 已用 `workflow_dispatch` 实测过一次（run 37577588313）：
+Checkout → Java → Gradle → Test → Build → Upload artifact 全部通过，最后的
+`publishPlugin` 报：
+
+```
+Failed to upload plugin: Upload failed:
+The com.chengyayu.pi-launcher plugin already contains version 0.1.0 in channel
+```
+
+这是**预期结果**，说明 secret 里的 token 有效、上传通道畅通 —— 只是因为 0.1.0
+已经上传过而被拒绝。如果 token 无效，报错会是 401 / unauthorized 之类的认证失败。
+
+所以：**用同一个版本号重跑这个 workflow 会红，这不是故障。** 换新版本号即可正常发布。
