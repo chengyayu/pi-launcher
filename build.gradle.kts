@@ -59,6 +59,11 @@ tasks {
     }
 
     publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
+        // PUBLISH_TOKEN for CI, publishToken in ~/.gradle/gradle.properties locally.
+        // The properties file lives outside the repository, so the token never gets committed.
+        token.set(
+            providers.environmentVariable("PUBLISH_TOKEN")
+                .orElse(providers.gradleProperty("publishToken"))
+        )
     }
 }

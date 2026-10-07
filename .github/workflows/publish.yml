@@ -1,34 +1,66 @@
 name: Publish Plugin
 
+# Publish from a GitHub release, or by hand from the Actions tab.
+# The version that gets uploaded is the one in build.gradle.kts.
 on:
   release:
     types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   publish:
+    name: Publish to JetBrains Marketplace
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 30
 
-      - name: Setup Java
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: '21'
 
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      # Publishing 0.1.0 under a v0.2.0 tag is confusing and hard to undo,
+      # so make the mismatch a hard failure.
+      - name: Check tag against plugin version
+        if: github.event_name == 'release'
+        run: |
+          version=$(grep -oE '^version = "[^"]+"' build.gradle.kts | cut -d'"' -f2)
+          tag="${GITHUB_REF_NAME#v}"
+          echo "build.gradle.kts:  $version"
+          echo "release tag:       $tag"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::build.gradle.kts says $version but the release tag is $tag. Bump one of them."
+            exit 1
+          fi
 
       - name: Test
         run: ./gradlew test
 
-      - name: Build Plugin
+      - name: Build plugin
         run: ./gradlew buildPlugin
 
-      - name: Verify Plugin
-        run: ./gradlew verifyPlugin
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin
+          path: build/distributions/*.zip
+          if-no-files-found: error
 
-      - name: Publish Plugin
+      # verifyPlugin is deliberately not part of this workflow: it resolves and
+      # verifies against every IDE in the since/until range, which downloads
+      # roughly 9.5 GB and does not fit comfortably on a hosted runner. Run
+      # `./gradlew verifyPlugin` locally before tagging a release instead.
+      - name: Publish plugin
         run: ./gradlew publishPlugin
         env:
           PUBLISH_TOKEN: ${{ secrets.JETBRAINS_PUBLISH_TOKEN }}

@@ -1,63 +1,72 @@
-# JetBrains Marketplace 发布准备
+# 发布到 JetBrains Marketplace
 
-## 插件信息
+## 当前状态
 
-- **Name**: Pi Launcher
-- **Tagline**: One-click Pi coding agent launcher for JetBrains IDEs
-- **Category**: AI Assistant / Code Tools
-- **Tags**: ai, coding-agent, terminal, pi, cli
+| 项 | 值 |
+|---|---|
+| Plugin ID | `com.chengyayu.pi-launcher` |
+| Marketplace ID | [34849](https://plugins.jetbrains.com/plugin/34849-pi-launcher) |
+| 已发布版本 | `0.1.0` |
+| 审核状态 | 审核中（新插件首次上传需人工审核，通常 1–2 个工作日） |
+| Pricing | Free，MIT |
+| Vendor | chengyayu（Non-trader） |
 
-## 需要准备的截图（3 张）
+插件 ID 一经发布**不可更改**。
 
-在 `./gradlew runIde` 沙箱 IDE 中操作并截图，建议 1280x800：
+## 首次发布（已完成，仅作记录）
 
-### 截图 1：Pi 终端
-- 点击工具栏 π 按钮
-- 展示 Terminal 窗口里的 `Pi` tab 正在运行 pi
-- 状态栏显示 `π Running`
+首次发布必须在网页上手动上传 —— Gradle 的 `publishPlugin` 只能用于**后续版本更新**。
 
-### 截图 2：Send to Pi
-- 选中一段代码 → 右键 → **Send to Pi**
-- 展示 Pi 输入框里插入了 `@lib/a.go#L10-25`
+1. 登录 <https://plugins.jetbrains.com/author/me>
+2. 首次上传需先接受 **JetBrains Marketplace Developer Agreement** 并创建 Vendor profile
+3. `Upload plugin` → 选择 `build/distributions/pi-launcher-<version>.zip`
+4. 填写 Plugin ID / Name / Category / License，其余（描述、change notes、vendor）从 `plugin.xml` 自动带出
+5. 在编辑页的 Media 区块单独上传截图（**截图不在 zip 里**）
 
-### 截图 3：设置面板
-- **Settings → Tools → Pi Launcher**
-- 展示 Model / Thinking level / Pi command / Auto-open files
+## 后续版本发布
 
+### 方式 A：GitHub Release（推荐）
+
+1. 改 `build.gradle.kts` 的 `version`，更新 `plugin.xml` 的 `<change-notes>`
+2. 提交并推送
+3. 配好 secret（只需一次）：
+   ```bash
+   gh secret set JETBRAINS_PUBLISH_TOKEN --repo chengyayu/pi-launcher
+   ```
+   token 从 <https://plugins.jetbrains.com/author/me/tokens> 生成，输入时是隐藏的。
+4. 在 GitHub 上创建 Release，tag 形如 `v0.2.0`
+
+`.github/workflows/publish.yml` 会依次执行 test → buildPlugin → publishPlugin。
+tag 与 `build.gradle.kts` 里的 version 不一致会直接失败，避免版本错乱。
+
+### 方式 B：本地发布
+
+```bash
+# token 放在 ~/.gradle/gradle.properties（在仓库外，不会被提交）
+echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
+./gradlew publishPlugin
 ```
-screenshots/
-├── 01-pi-terminal.png
-├── 02-send-to-pi.png
-└── 03-settings.png
-```
 
-## Marketplace 描述（用于填表）
+`build.gradle.kts` 优先读环境变量 `PUBLISH_TOKEN`，其次读 `publishToken` 属性。
 
-Pi Launcher brings the Pi coding agent CLI into your JetBrains IDE.
+## 发布前检查
 
-Click the toolbar button and Pi opens as a tab in the Terminal tool window —
-no separate window, no context switching. Select code, right-click "Send to Pi"
-and a file reference (`@path/file.go#L10-25`) is inserted into Pi's prompt.
+- [ ] `./gradlew test` 通过（38 个用例）
+- [ ] `./gradlew verifyPlugin` 通过 —— **不要跳过**
+- [ ] 在真实 IDE 里手工验证：启动 / 状态栏 / Send to Pi / 设置面板
+- [ ] `plugin.xml` 的 `<change-notes>` 已更新
 
-The plugin is intentionally quiet: it opens no diff tabs, shows no completion
-balloons and reports no exit. A session can rewrite dozens of files, and
-surfacing them as editor tabs is unusable — review the work with `git diff`.
-The status bar shows whether Pi is running, and follows it when you quit.
+### 关于 verifyPlugin
 
-No API keys needed — install the Pi CLI and you are ready.
+它会对照 `sinceBuild`–`untilBuild` 范围内的**每一个** IDE 做校验，当前配置下会下载约
+**9.5 GB**、校验 7 个版本（263 / 2026.2 / 2026.1 / 2025.3 / 2025.2 / 2025.1 / 2024.3）。
 
-## 发布 Checklist
+因此它**没有**放进 CI：GitHub 托管 runner 的可用磁盘约 14 GB，放不下，且耗时过长。
+请在本地发布前手动跑一次。
 
-- [ ] `./gradlew test` 通过
-- [ ] `./gradlew runIde` 手工验证：启动 / 状态栏 / Send to Pi / 设置面板
-- [ ] 截 3 张图
-- [ ] `./gradlew buildPlugin` 打包
-- [ ] `./gradlew verifyPlugin` 通过
-- [ ] 登录 plugins.jetbrains.com 上传（需先确认 plugin id 未被占用）
-- [ ] 填写描述、截图、分类
-- [ ] 提交审核
+## 注意事项
 
-## 注意
-
-- plugin id 是 `com.chengyayu.pi-launcher`，发布后不可更改
-- 排行榜/搜索里可能与其他 Pi 相关插件混淆，描述中已刻意说明差异
+- 描述、change notes、图标都来自 `plugin.xml`，改这些不需要重新上传 zip 之外的东西
+- 截图和 tagline 在 Marketplace 网页上单独维护，与 `plugin.xml` 无关
+- `untilBuild` 当前是 `262.*`：263 正式版发布后插件会显示不兼容，届时需要发版放宽
+- Marketplace 会自动为插件签名，不需要自备证书（`signPlugin` 在没有证书时会跳过）
