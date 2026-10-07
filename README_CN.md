@@ -6,6 +6,14 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+| | |
+|---|---|
+| ![Pi 在 Terminal tab 中运行](screenshots/01-pi-terminal.png) | ![Send to Pi 右键菜单](screenshots/02-send-to-pi.png) |
+
+<p align="center">
+  <img src="screenshots/03-settings.png" alt="Pi Launcher 设置面板" width="600"/>
+</p>
+
 ## 功能
 
 - **一键启动** — 点击工具栏 π 按钮启动 Pi

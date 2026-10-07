@@ -6,6 +6,14 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+| | |
+|---|---|
+| ![Pi running in a Terminal tab](screenshots/01-pi-terminal.png) | ![Send to Pi context menu](screenshots/02-send-to-pi.png) |
+
+<p align="center">
+  <img src="screenshots/03-settings.png" alt="Pi Launcher settings" width="600"/>
+</p>
+
 ## Features
 
 - **One-click launch** — Click the π button in the toolbar to start Pi
