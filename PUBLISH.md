@@ -5,9 +5,9 @@
 | 项 | 值 |
 |---|---|
 | Plugin ID | `com.chengyayu.pi-launcher` |
-| Marketplace ID | [34849](https://plugins.jetbrains.com/plugin/34849-pi-launcher) |
+| Marketplace ID | [34851](https://plugins.jetbrains.com/plugin/34851-pi-launcher) |
 | 已发布版本 | `0.1.0`、`0.2.0`（v0.2.0 release 触发 workflow 上传） |
-| 审核状态 | 审核中（新插件首次上传需人工审核，通常 1–2 个工作日） |
+| 审核状态 | 整插件仍在人工审核（`approve: false`），页面未公开列出；已上传的版本随审核入库 |
 | Pricing | Free，MIT |
 | Vendor | chengyayu（Non-trader） |
 
@@ -56,25 +56,31 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 - [ ] `plugin.xml` 的 `<change-notes>` 已更新
 - [ ] tag 与 `build.gradle.kts` 的 `version` 一致（workflow 会硬校验，不一致直接红）
 
-### 关于 verifyPlugin（可选，不是发布门槛）
+## 兼容性校验：只看 JetBrains 官方结果
 
-它对照 `sinceBuild` 范围内的**每一个** IDE 校验，当前配置下要下载约 **9.5 GB**、跑 7 个版本
-（263 / 2026.2 / 2026.1 / 2025.3 / 2025.2 / 2025.1 / 2024.3），耗时很长，CI 的磁盘也放不下
-（托管 runner 约 14 GB）。
+**不在本地跑 `verifyPlugin`。** 它要下载约 9.5 GB、对照 sinceBuild 范围内的每一个 IDE
+（243 / 251 / 252 / 253 / 261 / 262 / 263 共 7 个）逐个校验，耗时且占磁盘，CI 的 runner
+也放不下——而且它算出的结论**官方不认**：用户装插件时看到的是 Marketplace 自己的校验结果。
 
-所以它**不阻塞发布**：真正的上传结果由 `publishPlugin` 直接给出，兼容性问题用户会在 IDE 里
-看到 "incompatible" 提示，不会被静默吞掉。需要时按需跑一次即可：
+官方路径（上传后自动进行，无需本地介入）：
 
-```bash
-./gradlew verifyPlugin
-```
+- 作者后台 `/author/me` → 插件编辑页：版本审核状态、校验报错
+- 公开版本页：`https://plugins.jetbrains.com/plugin/34851-pi-launcher/versions`
+- 公开 API（无需 token）：
+  ```bash
+  curl -s "https://plugins.jetbrains.com/api/plugins/34851/updates" | python3 -m json.tool
+  ```
+  返回每个版本的 `compatibleVersions`（各 IDE 的兼容下限）、`since`/`until`、`approve`/`listed`
+
+`build.gradle.kts` 里的 `pluginVerifier()` 依赖保留着，需要时仍可 `./gradlew verifyPlugin`，
+但它不是发布门槛。
 
 ## 注意事项
 
 - 描述、change notes、图标都来自 `plugin.xml`，改这些不需要重新上传 zip 之外的东西
 - 截图和 tagline 在 Marketplace 网页上单独维护，与 `plugin.xml` 无关
-- 故意不设 `untilBuild`：verifyPlugin 实测连 263 都 Compatible，设了上限反而会让升级 IDE 的用户看到「不兼容」，直到恰好发新版
-- 0.2.0 抽查过验证器的两个版本：IC-243.28141.41、IC-251.29188.72 均为 Compatible
+- 故意不设 `untilBuild`：官方校验给出的 `since`/`until` 是 `243.0+`（无上限），各 IDE 均为
+  `2024.3+`；设了上限反而会让升级 IDE 的用户看到「不兼容」，直到恰好发新版
 - Marketplace 会自动为插件签名，不需要自备证书（`signPlugin` 在没有证书时会跳过）
 
 ## 换版本时不要删旧版本
@@ -85,6 +91,8 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 要换内容就直接上传**新的版本号**，旧版本让它留着 —— 用户在 IDE 里只会装到最新的那条。
 
 ## 已验证
+
+### 0.1.0
 
 `publish.yml` 已用 `workflow_dispatch` 实测过一次（run 37577588313）：
 Checkout → Java → Gradle → Test → Build → Upload artifact 全部通过，最后的
@@ -99,3 +107,13 @@ The com.chengyayu.pi-launcher plugin already contains version 0.1.0 in channel
 已经上传过而被拒绝。如果 token 无效，报错会是 401 / unauthorized 之类的认证失败。
 
 所以：**用同一个版本号重跑这个 workflow 会红，这不是故障。** 换新版本号即可正常发布。
+
+### 0.2.0
+
+走 Release 路径真实发布过一次（run 37932866698，`release: created` 触发）：
+Check tag against plugin version → Test → Build plugin → Upload artifact →
+`Publish plugin` 全部 success，`publishPlugin` 为 `BUILD SUCCESSFUL`（该任务失败会直接红，
+重复版本号就是例子）。
+
+上传后公开 API 仍只列出 `0.1.0`：插件级 `approve` 仍为 `false`，新版本要等人审通过才在
+版本页可见。`publishPlugin` 成功 = 文件已进 JetBrains，版本页滞后属于审核流程，不是发布失败。
