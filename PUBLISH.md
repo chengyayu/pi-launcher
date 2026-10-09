@@ -6,7 +6,7 @@
 |---|---|
 | Plugin ID | `com.chengyayu.pi-launcher` |
 | Marketplace ID | [34849](https://plugins.jetbrains.com/plugin/34849-pi-launcher) |
-| 已发布版本 | `0.1.0` |
+| 已发布版本 | `0.1.0`、`0.2.0`（v0.2.0 release 触发 workflow 上传） |
 | 审核状态 | 审核中（新插件首次上传需人工审核，通常 1–2 个工作日） |
 | Pricing | Free，MIT |
 | Vendor | chengyayu（Non-trader） |
@@ -51,24 +51,30 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 
 ## 发布前检查
 
-- [ ] `./gradlew test` 通过（38 个用例）
-- [ ] `./gradlew verifyPlugin` 通过 —— **不要跳过**
+- [ ] `./gradlew test` 通过
 - [ ] 在真实 IDE 里手工验证：启动 / 状态栏 / Send to Pi / 设置面板
 - [ ] `plugin.xml` 的 `<change-notes>` 已更新
+- [ ] tag 与 `build.gradle.kts` 的 `version` 一致（workflow 会硬校验，不一致直接红）
 
-### 关于 verifyPlugin
+### 关于 verifyPlugin（可选，不是发布门槛）
 
-它会对照 `sinceBuild`–`untilBuild` 范围内的**每一个** IDE 做校验，当前配置下会下载约
-**9.5 GB**、校验 7 个版本（263 / 2026.2 / 2026.1 / 2025.3 / 2025.2 / 2025.1 / 2024.3）。
+它对照 `sinceBuild` 范围内的**每一个** IDE 校验，当前配置下要下载约 **9.5 GB**、跑 7 个版本
+（263 / 2026.2 / 2026.1 / 2025.3 / 2025.2 / 2025.1 / 2024.3），耗时很长，CI 的磁盘也放不下
+（托管 runner 约 14 GB）。
 
-因此它**没有**放进 CI：GitHub 托管 runner 的可用磁盘约 14 GB，放不下，且耗时过长。
-请在本地发布前手动跑一次。
+所以它**不阻塞发布**：真正的上传结果由 `publishPlugin` 直接给出，兼容性问题用户会在 IDE 里
+看到 "incompatible" 提示，不会被静默吞掉。需要时按需跑一次即可：
+
+```bash
+./gradlew verifyPlugin
+```
 
 ## 注意事项
 
 - 描述、change notes、图标都来自 `plugin.xml`，改这些不需要重新上传 zip 之外的东西
 - 截图和 tagline 在 Marketplace 网页上单独维护，与 `plugin.xml` 无关
 - 故意不设 `untilBuild`：verifyPlugin 实测连 263 都 Compatible，设了上限反而会让升级 IDE 的用户看到「不兼容」，直到恰好发新版
+- 0.2.0 抽查过验证器的两个版本：IC-243.28141.41、IC-251.29188.72 均为 Compatible
 - Marketplace 会自动为插件签名，不需要自备证书（`signPlugin` 在没有证书时会跳过）
 
 ## 换版本时不要删旧版本
