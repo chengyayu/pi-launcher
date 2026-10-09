@@ -75,6 +75,18 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 `build.gradle.kts` 里的 `pluginVerifier()` 依赖保留着，需要时仍可 `./gradlew verifyPlugin`，
 但它不是发布门槛。
 
+## 回填旧版本的 Release
+
+给已经发布过的版本补 tag + release 时要注意：**release 事件用的是 tag 所在 commit 里的 workflow 文件**，
+不是 main 上的最新版。所以它会跑当时那套流程，最终在 `publishPlugin` 因为「版本已存在」而失败
+（见下方 0.1.0 例）。这种 run 不要当故障修，直接取消即可：它本来就不该再传一次。
+
+建 release 时记得 `--latest=false`，否则新补的旧版本会因为发布时间最新而抢走 Latest：
+
+```bash
+gh release create v0.1.0 --title "0.1.0" --notes-file notes.md --latest=false
+```
+
 ## 注意事项
 
 - 描述、change notes、图标都来自 `plugin.xml`，改这些不需要重新上传 zip 之外的东西
@@ -107,6 +119,16 @@ The com.chengyayu.pi-launcher plugin already contains version 0.1.0 in channel
 已经上传过而被拒绝。如果 token 无效，报错会是 401 / unauthorized 之类的认证失败。
 
 所以：**用同一个版本号重跑这个 workflow 会红，这不是故障。** 换新版本号即可正常发布。
+
+### 0.1.0
+
+首次发布是**网页手动上传**的（Gradle 的 `publishPlugin` 只能用于后续版本更新），所以没有对应的
+workflow run 记录。后来追溯到发布当时的提交 `c368119` 补了 tag 与 Release：那就是被上传的
+0.1.0（其后的 `drop the until-build cap` 是上传之后才改的）。
+
+补 Release 时触发了一次 run（37933606715，`head_sha=c368119`）：它跑的是**那个提交里的**
+workflow（还在跑 `Verify Plugin`），注定会在 `publishPlugin` 因 0.1.0 已存在而失败，因此已取消，
+未对 JetBrains 发起重复上传。
 
 ### 0.2.0
 
