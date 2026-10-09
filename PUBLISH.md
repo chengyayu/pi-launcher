@@ -6,8 +6,8 @@
 |---|---|
 | Plugin ID | `com.chengyayu.pi-launcher` |
 | Marketplace ID | [34851](https://plugins.jetbrains.com/plugin/34851-pi-launcher) |
-| 已发布版本 | `0.1.0`、`0.2.0`（v0.2.0 release 触发 workflow 上传） |
-| 审核状态 | 整插件仍在人工审核（`approve: false`），页面未公开列出；已上传的版本随审核入库 |
+| 已发布版本 | `0.1.0`、`0.2.0`（均已 `approve`/`listed`，可在 IDE 内直接安装） |
+| 审核状态 | 已过审：`0.2.0` 与 `0.1.0` 均为 `approve: true` / `listed: true` |
 | Pricing | Free，MIT |
 | Vendor | chengyayu（Non-trader） |
 
