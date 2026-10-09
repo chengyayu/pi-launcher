@@ -4,54 +4,52 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.chengyayu.pilauncher.domain.PiCommandLine
 import com.chengyayu.pilauncher.infrastructure.IdePiNotifier
 import com.chengyayu.pilauncher.infrastructure.IdeTerminalProvider
 import com.chengyayu.pilauncher.settings.PiSettings
 import com.chengyayu.pilauncher.settings.toLaunchOptions
 
 /**
- * Project-level entry point to the Pi session.
- *
- * IntelliJ only supports a `(Project)` (or `(Project, CoroutineScope)`)
- * constructor for services, so this stays a thin adapter and the actual logic
- * lives in [PiSession].
+ * Project-facing entry point; the logic lives in [PiSessionRegistry], because a
+ * platform service may only be constructed from a `Project`.
  */
 @Service(Service.Level.PROJECT)
 class PiSessionService(private val project: Project) : Disposable {
 
     init {
-        // Project services are created lazily. PiFileWatcher subscribes to the
-        // session topic in its initializer, so it must be touched here or it is
-        // never instantiated and file watching silently never starts.
+        // PiFileWatcher subscribes to the count topic in its initializer, and
+        // project services are created lazily, so it must be touched here.
         PiFileWatcher.getInstance(project)
     }
 
-    private val session = PiSession(
+    private val registry = PiSessionRegistry(
         workingDirectory = { project.basePath ?: System.getProperty("user.home") },
-        publishStatus = PiSessionState.publisherFor(project),
+        // Settings are a snapshot taken when a session starts.
+        startCommand = { PiCommandLine.render(PiSettings.getInstance().state.toLaunchOptions()) },
         terminals = IdeTerminalProvider(project),
         notifier = IdePiNotifier(project),
-        launchOptions = { PiSettings.getInstance().state.toLaunchOptions() }
+        publishCount = PiSessionListener.publisherFor(project)
     )
 
-    val status: PiSessionStatus get() = session.status
+    val runningCount: Int get() = registry.runningCount
 
-    fun isRunning(): Boolean = session.isRunning()
+    fun isRunning(): Boolean = registry.isRunning()
 
-    fun launch() = session.launch()
+    fun launch() = registry.launch()
 
-    fun submitText(text: String) = session.submitText(text)
+    fun newSession() = registry.newSession()
 
-    fun insertText(text: String) = session.insertText(text)
+    fun submitText(text: String) = registry.submitText(text)
 
-    fun focus() = session.focus()
+    fun insertText(text: String) = registry.insertText(text)
 
-    fun reset() = session.reset()
+    fun focus() = registry.focus()
 
-    override fun dispose() = session.dispose()
+    override fun dispose() = registry.dispose()
 
     companion object {
-        const val TAB_NAME = PiSession.TAB_NAME
+        const val BASE_TAB_NAME = PiSessionRegistry.BASE_TAB_NAME
 
         fun getInstance(project: Project): PiSessionService = project.service()
     }

@@ -5,14 +5,15 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 
 /**
- * One-click launch: focuses the Active Session, or starts a new one when no
- * session is running.
+ * Starts an additional Pi Session in its own Terminal tab, alongside the ones
+ * already running. Reachable from the Terminal tab context menu and from
+ * Search Everywhere; no default shortcut, bind your own if needed.
  */
-class LaunchPiAction : AnAction() {
+class NewPiSessionAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        PiSessionService.getInstance(project).launch()
+        PiSessionService.getInstance(project).newSession()
     }
 
     override fun update(e: AnActionEvent) {

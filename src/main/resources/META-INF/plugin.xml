@@ -17,10 +17,9 @@
     <h3>Features</h3>
     <ul>
         <li><b>One-click launch</b> from the toolbar</li>
-        <li><b>Integrated terminal</b> that opens a dedicated "Pi" tab inside the Terminal tool window</li>
+        <li><b>Integrated terminal</b> that opens "Pi 1", "Pi 2", … tabs inside the Terminal tool window — run several Pi sessions side by side</li>
         <li><b>Send to Pi</b> — select code, right-click, and send file reference (<code>@path/file.go#L10-25</code>) to Pi's input</li>
-        <li><b>Status bar state</b> that follows Pi when it stops</li>
-        <li><b>Silent</b> — no diff tabs, no completion balloons, no exit reports</li>
+        <li><b>Status bar state</b> that follows Pi when it stops</li>        <li><b>Silent</b> — no diff tabs, no completion balloons, no exit reports</li>
         <li><b>Optional auto-open</b> of modified files (off by default)</li>
         <li><b>Flexible configuration</b> for models, thinking levels, and launch options</li>
     </ul>
@@ -38,7 +37,7 @@
 
     <h3>Keyboard Shortcuts</h3>
     <ul>
-        <li><code>Ctrl+Shift+Backquote</code> — Launch or focus Pi</li>
+        <li><code>Ctrl+Shift+Backquote</code> — Launch or focus the active Pi session</li>
         <li><code>Ctrl+Shift+L</code> — Send selection to Pi</li>
     </ul>
 
@@ -47,6 +46,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>0.2.0</h3>
+    <ul>
+        <li>Run several Pi sessions side by side: "New Pi Session" opens an additional tab</li>
+        <li>Send to Pi targets the active session; selecting a Pi tab makes it active</li>
+        <li>Status bar shows how many sessions are running</li>
+    </ul>
     <h3>0.1.0</h3>
     <ul>
         <li>First release as an independent plugin</li>
@@ -86,10 +91,19 @@
         <action id="Pi.Launch"
                 class="com.chengyayu.pilauncher.actions.LaunchPiAction"
                 text="Launch Pi"
-                description="Start Pi in the Terminal window, or focus it when already running"
+                description="Focus the active Pi session, or start a new one when none is running"
                 icon="/icons/pi.svg">
             <add-to-group group-id="MainToolbarRight" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift BACK_QUOTE"/>
+        </action>
+
+        <!-- An additional session, reachable from the Terminal tab context menu -->
+        <action id="Pi.NewSession"
+                class="com.chengyayu.pilauncher.actions.NewPiSessionAction"
+                text="New Pi Session"
+                description="Start an additional Pi session in a new Terminal tab"
+                icon="/icons/pi.svg">
+            <add-to-group group-id="TerminalToolwindowActionGroup" anchor="last"/>
         </action>
 
         <!-- Send selection from editor -->

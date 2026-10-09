@@ -8,10 +8,10 @@ import com.intellij.util.Consumer
 import java.awt.event.MouseEvent
 
 /**
- * Status bar entry reflecting the Pi session state.
+ * Status bar entry showing how many Pi sessions are running.
  *
- * It subscribes to [PiSessionListener] rather than reading the session service,
- * so there is no dependency from the session back to the UI.
+ * It listens on the topic rather than reading the registry, keeping the registry
+ * free of any dependency on the UI that displays it.
  */
 class PiStatusWidget(private val project: Project) :
     StatusBarWidget,
@@ -21,13 +21,13 @@ class PiStatusWidget(private val project: Project) :
     private var statusBar: StatusBar? = null
 
     @Volatile
-    private var status: PiSessionStatus = PiSessionStatus.IDLE
+    private var runningCount: Int = 0
 
     private val connection = project.messageBus.connect(this).apply {
         subscribe(
             PiSessionListener.TOPIC,
-            PiSessionListener { newStatus ->
-                status = newStatus
+            PiSessionListener { newCount ->
+                runningCount = newCount
                 statusBar?.updateWidget(PiStatusWidgetFactory.ID)
             }
         )
@@ -37,18 +37,22 @@ class PiStatusWidget(private val project: Project) :
 
     override fun install(statusBar: StatusBar) {
         this.statusBar = statusBar
+        // The widget can be installed after sessions started; catch up once.
+        runningCount = PiSessionService.getInstance(project).runningCount
     }
 
     override fun getPresentation(): StatusBarWidget.WidgetPresentation = this
 
-    override fun getText(): String = when (status) {
-        PiSessionStatus.RUNNING -> "π Running"
-        PiSessionStatus.IDLE -> "π Idle"
+    override fun getText(): String = if (runningCount > 0) {
+        "π $runningCount running"
+    } else {
+        "π all-idle"
     }
 
-    override fun getTooltipText(): String = when (status) {
-        PiSessionStatus.RUNNING -> "Pi is running. Click to focus."
-        PiSessionStatus.IDLE -> "Pi is idle. Click to launch."
+    override fun getTooltipText(): String = if (runningCount > 0) {
+        "$runningCount Pi session${if (runningCount == 1) "" else "s"} running. Click to focus the active one."
+    } else {
+        "No Pi sessions running. Click to launch."
     }
 
     override fun getClickConsumer(): Consumer<MouseEvent> =

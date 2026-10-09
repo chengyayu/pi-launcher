@@ -29,8 +29,7 @@ import com.chengyayu.pilauncher.util.PiChangeDebouncer
  * What remains is the optional "auto-open files" convenience, which is off by
  * default and, when enabled, is debounced, filtered, capped and run on the EDT.
  *
- * Watching follows the session: it starts and stops with [PiSessionListener],
- * so no other component has to remember to wire it up.
+ * Watching follows the sessions: it runs while at least one is alive.
  */
 @Service(Service.Level.PROJECT)
 class PiFileWatcher(private val project: Project) : Disposable, PiSessionListener {
@@ -51,10 +50,11 @@ class PiFileWatcher(private val project: Project) : Disposable, PiSessionListene
         project.messageBus.connect(this).subscribe(PiSessionListener.TOPIC, this)
     }
 
-    override fun sessionStatusChanged(status: PiSessionStatus) {
-        when (status) {
-            PiSessionStatus.RUNNING -> startWatching()
-            PiSessionStatus.IDLE -> stopWatching()
+    override fun sessionCountChanged(runningCount: Int) {
+        if (runningCount > 0) {
+            startWatching()
+        } else {
+            stopWatching()
         }
     }
 

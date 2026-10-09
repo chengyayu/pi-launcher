@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.0
+
+### Added
+
+- **Several Pi sessions side by side.** "New Pi Session" (Terminal tab context
+  menu, Search Everywhere) opens an additional tab running its own `pi`; the
+  toolbar button and `Ctrl+Shift+Backquote` keep their focus-or-launch meaning
+  and act on the active session.
+- **Send to Pi follows focus.** The active session is the most recently focused
+  or created running one, so the reference lands in the tab you are looking at.
+- **Status bar shows the running-session count** (`π 2 running`, `π all-idle`).
+
+### Changed
+
+- A single-session project now names its tab "Pi 1" rather than "Pi".
+- Exiting Pi removes the session from the registry and leaves its tab in place;
+  the active pointer rolls over to the most recent remaining session.
+- Terminal tabs are created through the engine-agnostic `createShellWidget`
+  instead of `createLocalShellWidget`, which could not create a second tab on the
+  block terminal engine (the 2024.3+ default). See `docs/adr/0002`.
+
+### Fixed
+
+- **The old (classic) terminal engine could not start a session.** Its widget is
+  a package-private bridge class, so the reflective call that delivers the `pi`
+  command was rejected by the JVM: the tab appeared but no session started.
+- **Closing a Pi tab left its session behind.** Tab closures are now observed, so
+  the session leaves the registry and the status count drops.
+- **A send issued while the terminal was still connecting was dropped.** Delivery
+  now falls back to the pty and retries, but only when no delivery path existed,
+  so a command is never submitted twice.
+- **`Send to Pi` on a file logged an internal error** on every right-click: the
+  action resolved PSI data on the EDT instead of declaring `ActionUpdateThread.BGT`.
+
 ## 0.1.0
 
 First release (`com.chengyayu.pi-launcher`).

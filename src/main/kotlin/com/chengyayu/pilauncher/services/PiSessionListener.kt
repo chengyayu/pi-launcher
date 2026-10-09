@@ -1,18 +1,15 @@
 package com.chengyayu.pilauncher.services
 
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
 
-/** Whether a Pi session is currently running. */
-enum class PiSessionStatus { IDLE, RUNNING }
-
 /**
- * Notified when the Pi session starts or stops, so the status bar can refresh.
- *
- * Publishing through the project message bus keeps the session free of any
- * dependency on the UI that displays it.
+ * Notified whenever the running-session count changes, so the status bar can
+ * refresh and file watching can follow the sessions.
  */
 fun interface PiSessionListener {
-    fun sessionStatusChanged(status: PiSessionStatus)
+    fun sessionCountChanged(runningCount: Int)
 
     companion object {
         @JvmField
@@ -20,5 +17,14 @@ fun interface PiSessionListener {
             "Pi session status",
             PiSessionListener::class.java
         )
+
+        /** Publishes on the project message bus, safely from any thread. */
+        fun publisherFor(project: Project): (Int) -> Unit = { runningCount ->
+            ApplicationManager.getApplication().invokeLater {
+                if (!project.isDisposed) {
+                    project.messageBus.syncPublisher(TOPIC).sessionCountChanged(runningCount)
+                }
+            }
+        }
     }
 }
