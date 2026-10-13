@@ -13,10 +13,10 @@ internal class PiCommandDispatcher(
     private val settleMillis: Int = SETTLE_MILLIS,
     private val scheduler: PiScheduler = PiScheduler.swing
 ) {
-    fun submit(terminal: PiTerminal, command: String, onSent: () -> Unit = {}) {
+    /** Send [command], then report through [onDelivered] that it reached the pty. */
+    fun submit(terminal: PiTerminal, command: String, onDelivered: () -> Unit = {}) {
         scheduler.schedule(settleMillis, repeat = false) {
-            terminal.send(command, submit = true)
-            onSent()
+            terminal.send(command, submit = true, onDelivered = onDelivered)
         }
     }
 

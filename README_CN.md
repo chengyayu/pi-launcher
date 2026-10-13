@@ -70,13 +70,15 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
 
 ## 为什么代码是这样组织的
 
-设计由两条硬约束驱动：
+设计由四条硬约束驱动：
 
 1. **VFS 变更通知在后台线程到达。** 直接灌给编辑器 API 就是当年 GoLand 卡死的原因：一串写入 = 一串编辑器操作，不在 EDT 上，还和平台的读写锁赛跑。现在所有编辑器访问都经过 `PiChangeDebouncer`：合并突发、过滤无关变更、索引期间跳过、统一派发到 EDT。
 
 2. **进程存活无法用常见 API 探测。** pty4j 本地终端的 `TtyConnector.isConnected()` 委托给短命的 spawn 辅助进程而非交互式 shell，而 `ShellTerminalWidget.hasRunningCommands()` 在该值为 false 时直接早退返回 false。`pid()` 才是真实子进程 pid，因此改为检查 shell 的进程树——并先拆掉 block 终端装的 RD connector 代理。
 
 3. **两种终端引擎的 API 不一样。** 开 tab 用引擎无关的 `createShellWidget`（而不是 `createLocalShellWidget`：它会强转成 JediTerm widget，在 block 引擎上直接抛异常），并通过反射 + `setAccessible` 调用——因为经典引擎返回的是包私有桥接类。见 `docs/adr/0002`。
+
+4. **新开的 tab 没有 pty，两次发送之间没有任何顺序保证。** launch 命令要先等 settle 延迟、缺 pty 时还要重试，并行的 prompt 引用就可能先被敲进去，被 shell 当成命令行的一部分执行（`zsh: no such file or directory: @path…`）。现在输入会排在 launch 命令投递完成之后。见 `docs/adr/0003`。
 
 ## 开发
 

@@ -337,8 +337,9 @@ class PiSessionRegistryTest {
 
         override fun isForegroundCommandRunning(): Boolean? = commandRunning
 
-        override fun send(text: String, submit: Boolean) {
+        override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
             sent += Sent(text, submit)
+            onDelivered()
         }
     }
 

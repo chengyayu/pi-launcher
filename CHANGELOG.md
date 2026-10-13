@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+### Fixed
+
+- **`Send to Pi` typed the reference into the shell instead of into Pi** when no
+  session was running. The launch command is delivered asynchronously (the tab
+  has no pty yet), but the reference was sent immediately, so its retry loop
+  could win the race: the shell received `@path/file.go#L39-43 pi --no-themes` on
+  one line, failed with `no such file or directory`, never started Pi, and the
+  reference was lost. Input now waits until the launch command has reached the
+  pty (`docs/adr/0003`).
+
 ## 0.2.0
 
 ### Added

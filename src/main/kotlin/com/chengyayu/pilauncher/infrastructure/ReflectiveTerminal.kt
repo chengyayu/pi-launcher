@@ -33,32 +33,40 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
         return handle?.children()?.anyMatch { it.isAlive } ?: false
     }
 
-    override fun send(text: String, submit: Boolean) {
-        if (deliver(text, submit) != Delivery.NO_PATH) return
-        retry(text, submit, attemptsLeft = SEND_RETRIES)
+    override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
+        if (deliver(text, submit)) {
+            onDelivered()
+            return
+        }
+        retry(text, submit, attemptsLeft = SEND_RETRIES, onDelivered)
     }
 
     /**
-     * [Delivery.NO_PATH] is the only failure that may be retried: it means no
-     * delivery mechanism existed yet. A call that *threw* may have gone through,
-     * so it is reported and left alone rather than submitted twice.
+     * Answered `false` only when no delivery mechanism existed yet, which is the
+     * one failure that may be retried. A call that *threw* may have gone through,
+     * so it counts as delivered and is left alone rather than submitted twice.
      */
-    private fun deliver(text: String, submit: Boolean): Delivery = try {
-        val sent = if (submit) submitCommand(text) else typeText(text)
-        if (sent) Delivery.DELIVERED else Delivery.NO_PATH
+    private fun deliver(text: String, submit: Boolean): Boolean = try {
+        if (submit) submitCommand(text) else typeText(text)
     } catch (e: Exception) {
         logger.warn("Failed to send text to the Pi terminal: ${e.message}")
-        Delivery.DELIVERED
+        true
     }
 
-    private fun retry(text: String, submit: Boolean, attemptsLeft: Int) {
+    /**
+     * Gives up eventually rather than retrying forever, and always reports the
+     * outcome: a caller holding input back for this send must be released even
+     * when the terminal never becomes ready.
+     */
+    private fun retry(text: String, submit: Boolean, attemptsLeft: Int, onDelivered: () -> Unit) {
         if (attemptsLeft == 0) {
             logger.warn("Pi terminal never became ready for input: $text")
+            onDelivered()
             return
         }
 
         Timer(SEND_RETRY_DELAY_MILLIS) {
-            if (deliver(text, submit) == Delivery.NO_PATH) retry(text, submit, attemptsLeft - 1)
+            if (deliver(text, submit)) onDelivered() else retry(text, submit, attemptsLeft - 1, onDelivered)
         }.apply {
             isRepeats = false
             start()
@@ -120,8 +128,6 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
         val children = handle?.children()?.map { it.info().command().orElse("?") }?.toList()
         logger.debug("Pi liveness probe: pid=$pid shell=${handle != null} children=$children")
     }
-
-    private enum class Delivery { DELIVERED, NO_PATH }
 
     private companion object {
         const val GET_PROCESS = "getProcess"

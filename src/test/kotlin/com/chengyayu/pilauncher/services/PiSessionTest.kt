@@ -36,11 +36,10 @@ class PiSessionTest {
         tabName: String = "Pi 1",
         startCommand: String = "pi --no-themes",
         scheduler: PiScheduler? = null,
-        clock: (() -> Long)? = null
+        clock: (() -> Long)? = null,
+        terminal: PiTerminal = FakeTerminal().also { terminals += it }
     ): PiSession {
         val pollScheduler = scheduler ?: ManualScheduler().also { manual = it }
-        val terminal = FakeTerminal()
-        terminals += terminal
         return PiSession(
             tabName = tabName,
             terminal = terminal,
@@ -83,6 +82,50 @@ class PiSessionTest {
         }
 
         assertEquals(true, terminals.single().sent.last().submitted)
+    }
+
+    @Test
+    fun `input that arrives before the terminal is ready waits for the start command`() {
+        val terminal = GatedTerminal()
+        newSession(terminal = terminal).use { session ->
+            session.start()
+            session.insertText("@lib/a.go#L1-6 ")
+
+            assertEquals(
+                listOf("pi --no-themes"),
+                terminal.attempts.map { it.text },
+                "typing into a tab that has no shell yet is how the reference ends up " +
+                    "in the shell the launch command is about to run"
+            )
+
+            terminal.release()
+        }
+
+        assertEquals(
+            listOf("pi --no-themes", "@lib/a.go#L1-6 "),
+            terminal.sent.map { it.text },
+            "the held input must follow the start command, in arrival order"
+        )
+        assertEquals(listOf(true, false), terminal.sent.map { it.submitted })
+    }
+
+    @Test
+    fun `held input is sent in arrival order and flushed only once`() {
+        val terminal = GatedTerminal()
+        newSession(terminal = terminal).use { session ->
+            session.start()
+            session.insertText("@a.go ")
+            session.submitText("explain")
+
+            terminal.release()
+            terminal.release()
+        }
+
+        assertEquals(
+            listOf("pi --no-themes", "@a.go ", "explain"),
+            terminal.sent.map { it.text }
+        )
+        assertEquals(listOf(true, false, true), terminal.sent.map { it.submitted })
     }
 
     @Test
@@ -194,8 +237,54 @@ class PiSessionTest {
 
         override fun isForegroundCommandRunning(): Boolean? = commandRunning
 
-        override fun send(text: String, submit: Boolean) {
+        override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
             sent += Sent(text, submit)
+            onDelivered()
+        }
+    }
+
+    /**
+     * A tab in a Terminal window that was never opened: there is no pty for a
+     * while, so a send is refused and only the pty's arrival delivers anything -
+     * which is what the adapter's own retry loop ends up doing.
+     */
+    private class GatedTerminal : PiTerminal {
+        data class Sent(val text: String, val submitted: Boolean)
+
+        val sent = mutableListOf<Sent>()
+
+        /** Every send the session tried, refused ones included. */
+        val attempts = mutableListOf<Sent>()
+
+        var commandRunning: Boolean? = true
+
+        private var open = false
+        private val refused = mutableListOf<Pair<Sent, () -> Unit>>()
+
+        override fun isForegroundCommandRunning(): Boolean? = commandRunning
+
+        override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
+            val attempt = Sent(text, submit)
+            attempts += attempt
+
+            if (!open) {
+                refused += attempt to onDelivered
+                return
+            }
+
+            sent += attempt
+            onDelivered()
+        }
+
+        /** The pty appears: what was refused goes through, in attempt order. */
+        fun release() {
+            open = true
+            val pending = refused.toList()
+            refused.clear()
+            pending.forEach { (attempt, onDelivered) ->
+                sent += attempt
+                onDelivered()
+            }
         }
     }
 

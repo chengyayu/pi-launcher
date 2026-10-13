@@ -73,7 +73,7 @@ Works with all JetBrains IDEs: IntelliJ IDEA, GoLand, PyCharm, WebStorm, PhpStor
 
 ## Why the code is shaped like this
 
-Two constraints drive the design:
+Four constraints drive the design:
 
 1. **VFS change notifications arrive on a background thread.** Feeding them
    straight into editor APIs is what used to freeze GoLand: a burst of writes
@@ -93,6 +93,12 @@ Two constraints drive the design:
    to a JediTerm widget and throws on the block engine), through reflection with
    `setAccessible`, because the classic engine returns a package-private bridge
    class. See `docs/adr/0002`.
+
+4. **A fresh tab has no pty, and two sends are not ordered by anything.** The
+   launch command waits out a settle delay and retries while the pty is missing,
+   so a prompt reference sent in parallel could be typed first and run by the
+   shell as part of the command line (`zsh: no such file or directory: @path…`).
+   Input is queued behind the delivery of the launch command. See `docs/adr/0003`.
 
 ## Development
 

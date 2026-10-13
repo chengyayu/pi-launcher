@@ -11,6 +11,11 @@ import com.chengyayu.pilauncher.util.PiScheduler
  * Creation belongs to [PiSessionRegistry]; a session starts with its terminal
  * already attached. An exit is not reported to the user - `/exit` and a crash
  * cannot be told apart - but [onExited] tells the registry to stop counting it.
+ *
+ * Input sent before the start command has reached the terminal is held back: the
+ * pty belongs to a plain shell until then, and text typed into it would be run
+ * as part of the `pi …` command line instead of reaching Pi's prompt
+ * (`docs/adr/0003`).
  */
 internal class PiSession(
     val tabName: String,
@@ -29,18 +34,37 @@ internal class PiSession(
 
     private var runningCheck: Disposable? = null
 
+    /**
+     * Input that arrived before the start command reached the pty, in arrival
+     * order. Null once Pi has been launched, when input goes straight through.
+     */
+    private var queuedInput: MutableList<PromptInput>? = mutableListOf()
+
     val isRunning: Boolean get() = !exited
 
     fun start() {
-        commandDispatcher.submit(terminal, startCommand)
+        commandDispatcher.submit(terminal, startCommand, onDelivered = ::flushQueuedInput)
         watchForExit()
     }
 
     /** Send [text] and submit it. */
-    fun submitText(text: String) = terminal.send(text, submit = true)
+    fun submitText(text: String) = send(text, submit = true)
 
     /** Type [text] into the prompt without submitting it. */
-    fun insertText(text: String) = terminal.send(text, submit = false)
+    fun insertText(text: String) = send(text, submit = false)
+
+    private fun send(text: String, submit: Boolean) = synchronized(this) {
+        val queued = queuedInput
+        if (queued != null) queued += PromptInput(text, submit)
+        else terminal.send(text, submit) { }
+    }
+
+    private fun flushQueuedInput() = synchronized(this) {
+        val queued = queuedInput ?: return
+        queuedInput = null
+        // Sent while holding the lock: input arriving now must not overtake it.
+        queued.forEach { terminal.send(it.text, it.submit) { } }
+    }
 
     /**
      * Polls for the exit. The startup grace absorbs the window before the shell
@@ -80,4 +104,6 @@ internal class PiSession(
         const val STARTUP_GRACE_MILLIS = 6_000
         const val EXIT_STREAK_THRESHOLD = 2
     }
+
+    private data class PromptInput(val text: String, val submit: Boolean)
 }

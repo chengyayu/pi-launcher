@@ -3,8 +3,16 @@ package com.chengyayu.pilauncher.infrastructure
 /** One terminal tab, as far as a Pi Session cares about it. */
 interface PiTerminal {
 
-    /** Type [text] into the terminal, optionally submitting it. */
-    fun send(text: String, submit: Boolean)
+    /**
+     * Type [text] into the terminal, optionally submitting it.
+     *
+     * [onDelivered] is called once the text has reached the pty - or once every
+     * attempt to get it there has failed, so a caller queueing behind this send
+     * can never wait forever. It is the only ordering signal available: the
+     * widget reports no readiness, and a tab that was just opened has no pty for
+     * a while.
+     */
+    fun send(text: String, submit: Boolean, onDelivered: () -> Unit)
 
     /**
      * Whether a foreground command is running in this terminal.
