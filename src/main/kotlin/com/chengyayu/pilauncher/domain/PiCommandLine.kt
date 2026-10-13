@@ -13,8 +13,19 @@ object PiCommandLine {
      */
     private const val NO_THEMES = "--no-themes"
 
-    fun render(options: PiLaunchOptions): String {
+    /**
+     * How Pi is told to load the reporter that gives it a Session Status
+     * (`docs/adr/0005`).
+     */
+    private const val EXTENSION = "--extension"
+
+    fun render(options: PiLaunchOptions, extensionPath: String? = null): String {
         val parts = mutableListOf(options.command.ifBlank { PiLaunchOptions.DEFAULT_COMMAND })
+
+        extensionPath?.takeIf { it.isNotBlank() }?.let {
+            parts += EXTENSION
+            parts += quote(it)
+        }
 
         options.model?.takeIf { it.isNotBlank() }?.let {
             parts += "--model"
@@ -32,4 +43,11 @@ object PiCommandLine {
 
         return parts.joinToString(" ")
     }
+
+    /**
+     * Always quoted: the path lives under a temporary directory, which can contain
+     * spaces on any platform, and double quotes are accepted by POSIX shells,
+     * PowerShell and cmd alike.
+     */
+    private fun quote(path: String): String = "\"$path\""
 }

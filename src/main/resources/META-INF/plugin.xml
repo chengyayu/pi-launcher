@@ -80,6 +80,9 @@
                 id="com.chengyayu.pilauncher.settings"
                 displayName="Pi Launcher"/>
 
+        <fileEditorProvider
+                implementation="com.chengyayu.pilauncher.ui.PiDashboardEditorProvider"/>
+
         <statusBarWidgetFactory
                 id="PiLauncherStatus"
                 implementation="com.chengyayu.pilauncher.services.PiStatusWidgetFactory"

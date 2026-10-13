@@ -48,7 +48,7 @@ internal class PiSettingsForm(
         .addComponent(autoOpenFilesCheckbox, 1)
         .addComponentFillVertically(JPanel(), 0)
         .panel
-        .also { form ->
+        .also {
             listOf(modelCombo, customModelField, thinkingLevelCombo).forEach {
                 it.preferredSize = Dimension(FIELD_WIDTH, it.preferredSize.height)
             }

@@ -36,7 +36,7 @@ class PiSessionRegistryTest {
 
     private fun newRegistry() = PiSessionRegistry(
         workingDirectory = { "/work" },
-        startCommand = { "pi --no-themes" },
+        startCommand = { _ -> "pi --no-themes" },
         terminals = provider,
         notifier = notifier,
         publishCount = { counts += it },
@@ -57,6 +57,53 @@ class PiSessionRegistryTest {
         val sent = provider.created.single().terminal.sent.single()
         assertEquals("pi --no-themes", sent.text)
         assertTrue(sent.submitted, "the start command must be submitted")
+    }
+
+    @Test
+    fun `renaming a tab renames its session`() {
+        newRegistry().use { registry ->
+            registry.launch()
+            provider.rename("Pi 1", "A股")
+
+            assertEquals("A股", registry.readouts.single().tabName)
+        }
+    }
+
+    @Test
+    fun `a renamed session keeps its place and still becomes active`() {
+        newRegistry().use { registry ->
+            registry.launch()
+            registry.newSession()
+            provider.rename("Pi 1", "A股")
+            provider.rename("Pi 2", "B股")
+
+            assertEquals(listOf("A股", "B股"), registry.readouts.map { it.tabName }, "order must survive a rename")
+
+            provider.select("A股")
+            assertEquals("A股", registry.active?.tabName)
+        }
+    }
+
+    @Test
+    fun `a renamed session is still the one its tab closes`() {
+        newRegistry().use { registry ->
+            registry.launch()
+            provider.rename("Pi 1", "A股")
+            provider.close("A股")
+
+            assertTrue(registry.readouts.isEmpty(), "closing the renamed tab must drop its session")
+        }
+    }
+
+    @Test
+    fun `renaming an unknown or unchanged tab changes nothing`() {
+        newRegistry().use { registry ->
+            registry.launch()
+            provider.rename("Pi 9", "nope")
+            provider.rename("Pi 1", "Pi 1")
+
+            assertEquals(listOf("Pi 1"), registry.readouts.map { it.tabName })
+        }
     }
 
     @Test
@@ -293,6 +340,7 @@ class PiSessionRegistryTest {
 
         private var selectionListener: ((String) -> Unit)? = null
         private var closeListener: ((String) -> Unit)? = null
+        private var renameListener: ((String, String) -> Unit)? = null
 
         override fun createTerminalTab(workingDirectory: String, tabName: String): PiTerminal {
             if (failOnCreate) error("terminal unavailable")
@@ -315,6 +363,15 @@ class PiSessionRegistryTest {
 
         override fun onTabClosed(listener: (String) -> Unit) {
             closeListener = listener
+        }
+
+        override fun onTabRenamed(listener: (String, String) -> Unit) {
+            renameListener = listener
+        }
+
+        /** Simulates the user renaming a Terminal tab. */
+        fun rename(oldName: String, newName: String) {
+            renameListener?.invoke(oldName, newName)
         }
 
         /** Simulates the user clicking a Terminal tab. */

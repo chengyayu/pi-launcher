@@ -38,6 +38,14 @@ interface PiTerminalProvider {
     /** Called with the tab name whenever the user selects a tab. */
     fun onTabSelected(listener: (String) -> Unit)
 
+    /**
+     * Called with the old and the new name whenever the user renames a tab.
+     *
+     * The tab's name is the user's label for a Pi Session and outranks whatever the
+     * plugin called it at creation, so renames have to reach the registry.
+     */
+    fun onTabRenamed(listener: (oldName: String, newName: String) -> Unit)
+
     /** Called with the tab name whenever a tab is closed. */
     fun onTabClosed(listener: (String) -> Unit)
 }

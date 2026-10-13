@@ -15,3 +15,4 @@ internal fun Class<*>.methodOrNull(name: String, vararg params: Class<*>?): Meth
 /** Invokes [name]; null when the member is absent or the call failed. */
 internal fun Any.callOrNull(name: String, vararg params: Class<*>?): Any? =
     javaClass.methodOrNull(name, *params)?.invoke(this)
+

@@ -52,4 +52,25 @@ class PiCommandLineTest {
         assertFalse(PiCommandLine.render(PiLaunchOptions(extraArgs = "   ")).endsWith(" "))
         assertTrue(PiCommandLine.render(PiLaunchOptions()).contains("--no-themes"))
     }
+
+    @Test
+    fun `loads the status extension when there is one`() {
+        val command = PiCommandLine.render(PiLaunchOptions(), "/tmp/pi-launcher/status.ts")
+
+        assertEquals("pi --extension \"/tmp/pi-launcher/status.ts\" --no-themes", command)
+    }
+
+    /** A temporary directory can contain spaces on any platform, in any shell. */
+    @Test
+    fun `quotes the extension path`() {
+        val command = PiCommandLine.render(PiLaunchOptions(), "/tmp/pi launcher/status.ts")
+
+        assertTrue(command.contains("--extension \"/tmp/pi launcher/status.ts\""), command)
+    }
+
+    @Test
+    fun `omits the extension flag when Pi cannot host one`() {
+        assertEquals("pi --no-themes", PiCommandLine.render(PiLaunchOptions(), null))
+        assertEquals("pi --no-themes", PiCommandLine.render(PiLaunchOptions(), "  "))
+    }
 }

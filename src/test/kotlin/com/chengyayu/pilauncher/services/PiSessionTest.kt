@@ -1,6 +1,8 @@
 package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
+import com.chengyayu.pilauncher.domain.PiStatus
+import com.chengyayu.pilauncher.infrastructure.PiStatusSource
 import com.chengyayu.pilauncher.infrastructure.PiTerminal
 import com.chengyayu.pilauncher.util.PiScheduler
 import kotlin.test.Test
@@ -16,14 +18,19 @@ class PiSessionTest {
     private var clockMillis = 0L
 
     /**
-     * Sends the start command straight away but captures the repeating exit poll
-     * so a test can decide when (and whether) it runs.
+     * Sends the start command straight away but captures the repeating polls, so a
+     * test decides when - and whether - they run. The session registers the exit
+     * poll first and the status poll second.
      */
     private class ManualScheduler : PiScheduler {
-        var repeating: (() -> Unit)? = null
+        private val repeating = mutableListOf<() -> Unit>()
+
+        val exitPoll: () -> Unit get() = repeating.first()
+
+        val statusPoll: () -> Unit get() = repeating.last()
 
         override fun schedule(delayMs: Int, repeat: Boolean, action: () -> Unit): Disposable {
-            if (repeat) repeating = action else action()
+            if (repeat) repeating += action else action()
             return NoopDisposable
         }
     }
@@ -37,13 +44,15 @@ class PiSessionTest {
         startCommand: String = "pi --no-themes",
         scheduler: PiScheduler? = null,
         clock: (() -> Long)? = null,
-        terminal: PiTerminal = FakeTerminal().also { terminals += it }
+        terminal: PiTerminal = FakeTerminal().also { terminals += it },
+        statusSource: PiStatusSource? = null
     ): PiSession {
         val pollScheduler = scheduler ?: ManualScheduler().also { manual = it }
         return PiSession(
             tabName = tabName,
             terminal = terminal,
             startCommand = startCommand,
+            statusSource = statusSource,
             onExited = { exited = it },
             commandDispatcher = PiCommandDispatcher(settleMillis = 0, scheduler = ImmediateScheduler),
             scheduler = pollScheduler,
@@ -63,8 +72,33 @@ class PiSessionTest {
     }
 
     @Test
-    fun `insertText types without submitting`() {
+    fun `reports the Session Status Pi writes`() {
+        val source = FakeStatusSource()
+        newSession(statusSource = source).use { session ->
+            session.start()
+            assertNull(session.status, "no report has arrived yet")
+
+            source.status = PiStatus(PiStatus.State.BLOCKED, PiStatus.Kind.CONFIRM, "Allow tool call?")
+            manual!!.statusPoll.invoke()
+
+            assertEquals(PiStatus.State.BLOCKED, session.status?.state)
+            assertEquals(PiStatus.Kind.CONFIRM, session.status?.kind)
+            assertEquals("Allow tool call?", session.status?.message)
+        }
+    }
+
+    @Test
+    fun `a session without a status source never reports one`() {
         newSession().use { session ->
+            session.start()
+            manual!!.statusPoll.invoke()
+
+            assertNull(session.status)
+        }
+    }
+
+    @Test
+    fun `insertText types without submitting`() {        newSession().use { session ->
             session.start()
             session.insertText("@lib/a.go#L1-6 ")
         }
@@ -136,7 +170,7 @@ class PiSessionTest {
 
             terminals.single().commandRunning = false
             clockMillis += 10_000 // past the startup grace
-            repeat(2) { manual!!.repeating!!.invoke() }
+            repeat(2) { manual!!.exitPoll.invoke() }
 
             assertFalse(session.isRunning, "an exited Pi must not stay running")
             assertEquals(session, exited, "the registry must be told about the exit")
@@ -150,11 +184,11 @@ class PiSessionTest {
             clockMillis += 10_000
 
             terminals.single().commandRunning = false
-            manual!!.repeating!!.invoke()
+            manual!!.exitPoll.invoke()
             assertTrue(session.isRunning, "one gap must not end the session")
 
             terminals.single().commandRunning = true
-            manual!!.repeating!!.invoke()
+            manual!!.exitPoll.invoke()
             assertTrue(session.isRunning)
         }
     }
@@ -166,7 +200,7 @@ class PiSessionTest {
 
             // Right after launch the shell has not spawned Pi yet.
             terminals.single().commandRunning = false
-            repeat(5) { manual!!.repeating!!.invoke() }
+            repeat(5) { manual!!.exitPoll.invoke() }
 
             assertTrue(session.isRunning, "Pi must not be reported exited before it could start")
         }
@@ -179,7 +213,7 @@ class PiSessionTest {
             clockMillis += 10_000
 
             terminals.single().commandRunning = null
-            repeat(3) { manual!!.repeating!!.invoke() }
+            repeat(3) { manual!!.exitPoll.invoke() }
 
             assertTrue(session.isRunning, "an unknown answer must not be treated as an exit")
         }
@@ -192,7 +226,7 @@ class PiSessionTest {
             clockMillis += 10_000
 
             terminals.single().commandRunning = true
-            repeat(3) { manual!!.repeating!!.invoke() }
+            repeat(3) { manual!!.exitPoll.invoke() }
 
             assertTrue(session.isRunning)
         }
@@ -208,7 +242,7 @@ class PiSessionTest {
             // Even if the platform reports the command is gone, a disposed
             // session must not report an exit.
             terminals.single().commandRunning = false
-            manual!!.repeating?.invoke()
+            manual!!.exitPoll.invoke()
 
             assertNull(exited, "a disposed session must not report an exit")
         }
@@ -227,6 +261,13 @@ class PiSessionTest {
             action()
             return NoopDisposable
         }
+    }
+
+    private class FakeStatusSource : PiStatusSource {
+        @Volatile
+        var status: PiStatus? = null
+
+        override fun read(): PiStatus? = status
     }
 
     private class FakeTerminal : PiTerminal {

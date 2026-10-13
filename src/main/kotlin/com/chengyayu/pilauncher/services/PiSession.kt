@@ -2,6 +2,8 @@ package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
+import com.chengyayu.pilauncher.domain.PiStatus
+import com.chengyayu.pilauncher.infrastructure.PiStatusSource
 import com.chengyayu.pilauncher.infrastructure.PiTerminal
 import com.chengyayu.pilauncher.util.PiScheduler
 
@@ -18,10 +20,15 @@ import com.chengyayu.pilauncher.util.PiScheduler
  * (`docs/adr/0003`).
  */
 internal class PiSession(
-    val tabName: String,
+    /** The tab's display name, as the user sees it. Renaming the tab updates it. */
+    @Volatile
+    var tabName: String,
+    val sessionId: String = tabName,
     private val terminal: PiTerminal,
     private val startCommand: String,
+    private val statusSource: PiStatusSource? = null,
     private val onExited: (PiSession) -> Unit,
+    private val onStatusChanged: (PiSession) -> Unit = {},
     private val commandDispatcher: PiCommandDispatcher = PiCommandDispatcher(),
     private val scheduler: PiScheduler = PiScheduler.swing,
     private val clock: () -> Long = System::currentTimeMillis
@@ -32,7 +39,20 @@ internal class PiSession(
     @Volatile
     private var exited = false
 
+    /**
+     * The last Session Status Pi reported, or null when none arrived yet.
+     *
+     * Null is a real answer, not a missing one: it means this session has no
+     * Status Source or has not spoken yet, and callers must show Inferred Status
+     * rather than treat the session as idle.
+     */
+    @Volatile
+    var status: PiStatus? = null
+        private set
+
     private var runningCheck: Disposable? = null
+
+    private var statusCheck: Disposable? = null
 
     /**
      * Input that arrived before the start command reached the pty, in arrival
@@ -45,6 +65,7 @@ internal class PiSession(
     fun start() {
         commandDispatcher.submit(terminal, startCommand, onDelivered = ::flushQueuedInput)
         watchForExit()
+        watchStatus()
     }
 
     /** Send [text] and submit it. */
@@ -93,14 +114,39 @@ internal class PiSession(
         }
     }
 
+    /**
+     * Polls the status channel Pi writes to.
+     *
+     * A poll rather than a filesystem watch: the reporter replaces its file
+     * atomically on every event, and one `stat` every few hundred milliseconds is
+     * both cheaper and far less surprising than a watch on a file that keeps being
+     * renamed out from under the watch service.
+     */
+    private fun watchStatus() {
+        val source = statusSource ?: return
+
+        statusCheck = scheduler.schedule(STATUS_POLL_INTERVAL_MILLIS, repeat = true) {
+            if (exited) return@schedule
+
+            val reported = source.read() ?: return@schedule
+            if (reported == status) return@schedule
+
+            status = reported
+            onStatusChanged(this)
+        }
+    }
+
     override fun dispose() {
         runningCheck?.dispose()
         runningCheck = null
+        statusCheck?.dispose()
+        statusCheck = null
         exited = true
     }
 
     private companion object {
         const val EXIT_POLL_INTERVAL_MILLIS = 2_000
+        const val STATUS_POLL_INTERVAL_MILLIS = 400
         const val STARTUP_GRACE_MILLIS = 6_000
         const val EXIT_STREAK_THRESHOLD = 2
     }

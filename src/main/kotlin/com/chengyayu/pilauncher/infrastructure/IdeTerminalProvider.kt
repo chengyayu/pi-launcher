@@ -6,6 +6,7 @@ import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
+import java.beans.PropertyChangeListener
 
 /**
  * [PiTerminalProvider] backed by the IDE's Terminal tool window.
@@ -20,6 +21,7 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
 
     private var selectionListener: ((String) -> Unit)? = null
     private var closeListener: ((String) -> Unit)? = null
+    private var renameListener: ((String, String) -> Unit)? = null
     private var listenersInstalled = false
 
     override fun onTabSelected(listener: (String) -> Unit) {
@@ -30,6 +32,10 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
         closeListener = listener
     }
 
+    override fun onTabRenamed(listener: (String, String) -> Unit) {
+        renameListener = listener
+    }
+
     override fun createTerminalTab(workingDirectory: String, tabName: String): PiTerminal {
         val widget = createShellWidget(workingDirectory, tabName)
         if (widget == null) error("the Terminal tool window created no widget for $tabName")
@@ -37,7 +43,10 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
         installTabListeners()
         contentManager()?.contents
             ?.lastOrNull { it.displayName == tabName }
-            ?.let { tabs[tabName] = it }
+            ?.let { content ->
+                tabs[tabName] = content
+                content.addPropertyChangeListener(renameReporter)
+            }
 
         focusTerminalTab(tabName)
         return ReflectiveTerminal(widget)
@@ -58,6 +67,22 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
         contentManager()?.contents?.map { it.displayName }?.toSet() ?: emptySet()
 
     /**
+     * A renamed tab keeps its `Content` and changes only its display name, so both
+     * the lookup table and the registry have to follow it (`Content.PROP_DISPLAY_NAME`
+     * is what the platform's own rename actions fire).
+     */
+    private val renameReporter = PropertyChangeListener { event ->
+        if (event.propertyName != Content.PROP_DISPLAY_NAME) return@PropertyChangeListener
+
+        val oldName = event.oldValue as? String ?: return@PropertyChangeListener
+        val newName = event.newValue as? String ?: return@PropertyChangeListener
+        if (oldName == newName) return@PropertyChangeListener
+
+        tabs.remove(oldName)?.let { tabs[newName] = it }
+        renameListener?.invoke(oldName, newName)
+    }
+
+    /**
      * Tracks which Pi tab the user is on, and drops tabs the user closed. Only
      * tabs this provider created are reported, so foreign terminal tabs are
      * ignored.
@@ -72,8 +97,11 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
             }
 
             override fun contentRemoved(event: ContentManagerEvent) {
-                val tabName = event.content.displayName
-                if (tabs.remove(tabName) != null) closeListener?.invoke(tabName)
+                // Found by identity: after a rename the display name is the new one,
+                // but the lookup table is what decides whether this tab was ours.
+                val tabName = tabs.entries.firstOrNull { it.value === event.content }?.key ?: return
+                tabs.remove(tabName)
+                closeListener?.invoke(tabName)
             }
         })
         listenersInstalled = true
