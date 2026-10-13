@@ -6,7 +6,7 @@
 |---|---|
 | Plugin ID | `com.chengyayu.pi-launcher` |
 | Marketplace ID | [34851](https://plugins.jetbrains.com/plugin/34851-pi-launcher) |
-| 已发布版本 | `0.1.0`、`0.2.0`（均已 `approve`/`listed`，可在 IDE 内直接安装） |
+| 已发布版本 | `0.1.0`、`0.2.0`、`0.2.1`（`0.3.0` 为本次发布） |
 | 审核状态 | 已过审：`0.2.0` 与 `0.1.0` 均为 `approve: true` / `listed: true` |
 | Pricing | Free，MIT |
 | Vendor | chengyayu（Non-trader） |
@@ -48,6 +48,14 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 ```
 
 `build.gradle.kts` 优先读环境变量 `PUBLISH_TOKEN`，其次读 `publishToken` 属性。
+
+## 更新截图（Media）
+
+截图不在 zip 里，`publishPlugin` 也不会碰 Media 区块，只能在插件编辑页手动上传：
+
+1. 打开 <https://plugins.jetbrains.com/plugin/34851-pi-launcher/edit>
+2. **Media** 区块上传 `screenshots/04-session-dashboard.png`（1600×1005）
+3. 建议把它排到第一位：Session Dashboard 最能说明这个插件现在做什么
 
 ## 发布前检查
 

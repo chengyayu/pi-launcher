@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+- **Real session status.** Pi reports its own execution state — `working`,
+  `blocked`, `done`, `error`, `idle` — and the status bar shows that instead of a
+  count of live tabs. A session Pi has not reported on reads `unknown`, never
+  `idle`: the plugin does not invent a state it cannot see.
+- **Session Dashboard** — an editor tab listing every session with its state and,
+  where Pi has something to say, its own words: the dialog title it is blocked on,
+  the first line of an error, or the tool call it is running
+  (`bash: go build ./...`). Clicking a row jumps to that session's Terminal tab,
+  and `New Pi Session` sits in the same panel.
+- **Renamed tabs rename their session** — a tab's display name is the user's label
+  for a session, so the dashboard and the tooltip follow a rename.
+
+### Changed
+
+- Clicking the status bar entry opens the Session Dashboard; **Alt+click** starts a
+  new session without leaving what is on screen.
+- Status arrives through a small extension the plugin loads into Pi with
+  `--extension` (`docs/adr/0005`). Pi's own Program Status Protocol is an OSC
+  sequence the IDE terminal discards, so it cannot be read from outside
+  (`docs/adr/0004`).
+
+### Notes
+
+- Reporting needs a Pi that can load extensions. The plugin asks Pi first and
+  injects nothing when the answer is no, so an older Pi keeps working and simply
+  shows `no status from Pi` — a session that will not start is worse than one
+  without status.
+
 ## 0.2.1
 
 ### Fixed

@@ -31,3 +31,23 @@ _Avoid_: start、open、run
 **Send to Pi**:
 把编辑器选区或文件以 `@path#L10-25` 引用的形式插入 Active Session 的输入。
 _Avoid_: 发送给 pi、提交代码
+
+**Session Status**:
+pi 自己报告的一个 Pi Session 的执行状态，取值为 working / blocked / done / error / idle。它描述 pi 在做什么，不描述插件认为 pi 在做什么。报告里还可能带两样东西：pi 对自己状态的解释（对话框标题、错误首行）与它此刻的活动（正在跑的工具调用）；两者的区别是前者在问你要东西，后者只是它在忙。
+_Avoid_: 状态、running 状态、busy 状态
+
+**Status Source**:
+一个 Pi Session 的 Session Status 从其获得的来源。当前唯一的 Status Source 是 Status Extension 写出的报告文件。
+_Avoid_: 状态通道、事件源、OSC
+
+**Status Extension**:
+随 Pi 启动注入进该进程的一个 pi 扩展，它把 Session Status 写进 Status Source。它让插件从进程内部观察 pi，而不是从终端外面猜。
+_Avoid_: reporter 脚本、状态插件
+
+**Inferred Status**:
+插件在 Status Source 不可用时，从进程存活与否推断出的降级状态。它与 Session Status 可信度不同，必须可区分地呈现。
+_Avoid_: status（不加限定时）、推定状态
+
+**Session Dashboard**:
+展示 Session Registry 中每个 Pi Session 的 Session Status 的单一面板。
+_Avoid_: 控制面板、状态面板、dashboard

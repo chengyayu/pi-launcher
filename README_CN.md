@@ -2,13 +2,17 @@
 
 [English](README.md)
 
-一键启动 [Pi coding agent](https://pi.dev) 的 JetBrains IDE 插件 —— 在 Terminal 窗口中打开 "Pi 1"、"Pi 2"… tab 并自动启动 `pi`，可以同时跑多个会话。
+一键启动 [Pi coding agent](https://pi.dev) 的 JetBrains IDE 插件 —— 在 Terminal 窗口中打开 "Pi 1"、"Pi 2"… tab 并自动启动 `pi`，可以同时跑多个会话，每个会话都显示 pi 自己报告的执行状态。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 | | |
 |---|---|
 | ![Pi 在 Terminal tab 中运行](screenshots/01-pi-terminal.png) | ![Send to Pi 右键菜单](screenshots/02-send-to-pi.png) |
+
+<p align="center">
+  <img src="screenshots/04-session-dashboard.png" alt="Pi Session Dashboard：每个会话、pi 报告的状态、以及它正在跑的工具"/>
+</p>
 
 <p align="center">
   <img src="screenshots/03-settings.png" alt="Pi Launcher 设置面板" width="600"/>
@@ -20,10 +24,30 @@
 - **终端集成** — Pi 作为 IDE Terminal 窗口的一个 tab（和 Local 并列），每个会话一个 tab，可同时运行多个 Pi Session
 - **新建会话** — Terminal tab 右键 → "New Pi Session" 再开一个会话
 - **发送选区** — 选中代码 → 右键 → "Send to Pi"，自动插入 `@path/file.go#L10-25` 到当前会话（Active Session）输入框
-- **状态栏指示** — 显示正在运行的会话数量，你退出后也会跟着更新
+- **真实状态** — 状态栏显示 pi 在做什么（`working` / `blocked` / `done` / `error` / `idle`），而不是开了几个 tab
+- **Session Dashboard** — 一个编辑器 tab 列出所有会话及其状态，以及 pi 自己说的话：卡在哪个对话框、错误首行、正在跑的工具调用
+- **重命名 tab 就等于重命名会话** — 面板与 tooltip 都用 tab 的显示名，`Pi 1` 改成 `api work` 后到处都叫 `api work`
 - **模型配置** — 从 `~/.pi/agent/models.json` 加载模型列表
 
 所有会话共用同一套设置，命令在会话启动时取快照。
+
+## 会话状态
+
+状态是 **pi 自己报告的**，不是插件猜的：
+
+| 状态 | pi 报告的含义 |
+|------|--------------|
+| `working` | agent run 或 compaction 进行中 |
+| `blocked` | 有对话框在等你 —— tooltip 与面板会写出它的标题 |
+| `done` | 一次 run 结束 |
+| `error` | 一次 run 因错误结束且 pi 未重试 |
+| `idle` | pi 刚启动，或你取消了这次 run |
+
+**没有报告的会话显示 `no status from Pi`，绝不会显示 `idle`。** 不是每个 pi 版本都能被报告，而插件看不到状态时应该说看不到，而不是编一个。
+
+状态的来源是插件加载进 pi 进程的一个小扩展（`--extension`，见 `docs/adr/0005`）——因为 pi 自带的状态协议是 IDE 终端会丢弃的 OSC 转义序列（见 `docs/adr/0004`）。插件会先问 pi 是否接受该 flag，老版本 pi 照常工作，只是没有状态。
+
+点击状态栏打开 **Session Dashboard**；**Alt+点击** 直接新开一个会话。面板除"切到该会话的 Terminal tab""新建会话"这两个安全动作外是只读的。
 
 ## 默认安静
 
@@ -70,7 +94,7 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
 
 ## 为什么代码是这样组织的
 
-设计由四条硬约束驱动：
+设计由五条硬约束驱动：
 
 1. **VFS 变更通知在后台线程到达。** 直接灌给编辑器 API 就是当年 GoLand 卡死的原因：一串写入 = 一串编辑器操作，不在 EDT 上，还和平台的读写锁赛跑。现在所有编辑器访问都经过 `PiChangeDebouncer`：合并突发、过滤无关变更、索引期间跳过、统一派发到 EDT。
 
@@ -79,6 +103,8 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
 3. **两种终端引擎的 API 不一样。** 开 tab 用引擎无关的 `createShellWidget`（而不是 `createLocalShellWidget`：它会强转成 JediTerm widget，在 block 引擎上直接抛异常），并通过反射 + `setAccessible` 调用——因为经典引擎返回的是包私有桥接类。见 `docs/adr/0002`。
 
 4. **新开的 tab 没有 pty，两次发送之间没有任何顺序保证。** launch 命令要先等 settle 延迟、缺 pty 时还要重试，并行的 prompt 引用就可能先被敲进去，被 shell 当成命令行的一部分执行（`zsh: no such file or directory: @path…`）。现在输入会排在 launch 命令投递完成之后。见 `docs/adr/0003`。
+
+5. **pi 无法从外部观察。** 它自带的状态协议是 IDE 终端会丢弃的 OSC 转义序列，不提供 attach，也不写状态文件。因此插件通过 `--extension` 把一个很小的扩展加载进 pi 进程，读它写出的文件（见 `docs/adr/0005`）——并且会先问 pi 是否接受这个 flag：老版本 pi 拒绝它会让会话根本起不来。
 
 ## 开发
 

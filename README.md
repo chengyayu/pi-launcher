@@ -2,13 +2,17 @@
 
 [中文文档](README_CN.md)
 
-One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — opens "Pi 1", "Pi 2", … tabs inside the Terminal tool window and starts `pi` automatically, several sessions at a time.
+One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — opens "Pi 1", "Pi 2", … tabs inside the Terminal tool window and starts `pi` automatically, several sessions at a time, each with the state Pi reports for itself.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 | | |
 |---|---|
 | ![Pi running in a Terminal tab](screenshots/01-pi-terminal.png) | ![Send to Pi context menu](screenshots/02-send-to-pi.png) |
+
+<p align="center">
+  <img src="screenshots/04-session-dashboard.png" alt="Pi Session Dashboard: every session, the state Pi reported, and the tool call it is running"/>
+</p>
 
 <p align="center">
   <img src="screenshots/03-settings.png" alt="Pi Launcher settings" width="600"/>
@@ -20,10 +24,38 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 - **Terminal integration** — each Pi session runs as its own tab in the IDE's Terminal window (alongside Local), so several sessions can run side by side
 - **New Pi Session** — right-click a Terminal tab to start an additional session
 - **Send to Pi** — Select code → Right-click → "Send to Pi" inserts `@path/file.go#L10-25` into the active session's input
-- **Status bar state** — Shows how many sessions are running, and follows them when you quit
+- **Live session status** — The status bar shows what Pi is doing (`working`, `blocked`, `done`, `error`, `idle`), not how many tabs happen to be open
+- **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
+- **Rename a tab, rename the session** — The dashboard and the tooltip use the tab's display name, so `Pi 1` renamed to `api work` is `api work` everywhere
 - **Model configuration** — Pick model and thinking level from `~/.pi/agent/models.json`
 
 All sessions share the same settings; the command line is a snapshot taken when a session starts.
+
+## Session status
+
+Pi reports its own execution state, and the plugin shows it rather than guessing:
+
+| State | What Pi announced |
+|-------|-------------------|
+| `working` | an agent run or a compaction is in progress |
+| `blocked` | a dialog is waiting for you — the tooltip and the dashboard name it |
+| `done` | a run finished |
+| `error` | a run ended with an error that Pi did not retry |
+| `idle` | Pi started, or you cancelled the run |
+
+A session Pi has not reported on reads **`no status from Pi`** — never `idle`. Not
+every Pi build can be reported on, and a plugin that cannot see a state should say
+so instead of inventing one.
+
+The status arrives through a small extension the plugin loads into Pi
+(`--extension`, see `docs/adr/0005`), because Pi's own status protocol is an OSC
+escape sequence that the IDE terminal discards (`docs/adr/0004`). The plugin asks Pi
+whether it accepts the flag before using it, so an older Pi keeps working and simply
+reports no status.
+
+Click the status bar entry to open the **Session Dashboard**; **Alt+click** starts a
+new session without leaving what is on screen. The dashboard is read-only apart from
+two safe actions: show a session in the Terminal window, or start another one.
 
 ## Silent by design
 
@@ -73,7 +105,7 @@ Works with all JetBrains IDEs: IntelliJ IDEA, GoLand, PyCharm, WebStorm, PhpStor
 
 ## Why the code is shaped like this
 
-Four constraints drive the design:
+Five constraints drive the design:
 
 1. **VFS change notifications arrive on a background thread.** Feeding them
    straight into editor APIs is what used to freeze GoLand: a burst of writes
@@ -100,6 +132,13 @@ Four constraints drive the design:
    shell as part of the command line (`zsh: no such file or directory: @path…`).
    Input is queued behind the delivery of the launch command. See `docs/adr/0003`.
 
+5. **Pi cannot be observed from outside.** Its own status protocol is an OSC escape
+   sequence the IDE terminal discards, it offers no attach, and it writes no status
+   file. The plugin therefore loads a small extension into Pi with `--extension` and
+   reads the file that extension writes (`docs/adr/0005`) — after asking Pi whether it
+   accepts the flag, because a flag an older Pi rejects would stop the session from
+   starting at all.
+
 ## Development
 
 ```bash
@@ -124,10 +163,15 @@ src/main/kotlin/com/chengyayu/pilauncher/
 │   ├── PiLaunchOptions.kt         # Inputs that determine how Pi starts
 │   ├── PiCommandLine.kt           # Renders options into the CLI command
 │   ├── PiFileReference.kt         # @path#L10-25 references
+│   ├── PiStatus.kt                # Session Status: a state, a message, an activity
+│   ├── PiStatusReport.kt          # Decodes what the Pi-side extension writes
+│   ├── PiStatusReadout.kt         # Wording shared by the status bar and dashboard
 │   └── PiModel.kt                 # Model advertised by the Pi CLI
 ├── infrastructure/                # Adapters to the IDE and the filesystem
 │   ├── PiTerminal.kt              # Terminal interfaces (fakeable)
 │   ├── IdeTerminalProvider.kt     # Reflective Terminal tool window access
+│   ├── PiStatusChannel.kt         # Per-session status source (fakeable)
+│   ├── PiStatusExtension.kt       # Hosts the Pi-side extension, reads its reports
 │   ├── PiModelRepository.kt       # Reads ~/.pi/agent/models.json
 │   └── PiNotifier.kt              # Notification interface + IDE impl
 ├── util/
@@ -137,17 +181,25 @@ src/main/kotlin/com/chengyayu/pilauncher/
 │   ├── PiSessionRegistry.kt       # All running sessions + Active Session pointer
 │   ├── PiSession.kt               # One session's lifecycle
 │   ├── PiSessionListener.kt       # Observable running-session count (topic)
+│   ├── PiSessionStatusListener.kt # Observable session snapshot (topic)
 │   ├── PiCommandDispatcher.kt     # Sends the start command
 │   ├── PiFileWatcher.kt           # Optional auto-open (off by default)
 │   ├── PiStatusWidget.kt          # Status bar entry
 │   └── PiVfsUtils.kt              # VFS change filtering
+├── ui/                            # The Session Dashboard editor tab
+│   ├── PiDashboardPanel.kt        # Table of sessions + safe actions
+│   ├── PiDashboardTableModel.kt   # Readout -> row mapping
+│   └── PiDashboardEditorProvider.kt  # One dashboard tab per project
 ├── actions/                       # Extract input, delegate to a service
 └── settings/                      # Persisted state and settings UI
+
+src/main/resources/pi/
+└── pi-launcher-status.ts          # The reporter loaded into Pi with --extension
 ```
 
 The `domain` and `util` packages have no IntelliJ dependencies, so argument
-handling, reference formatting and debouncing are covered by plain unit tests
-(`./gradlew test`).
+handling, reference formatting, status decoding and debouncing are covered by plain
+unit tests (`./gradlew test`).
 
 ## License
 
