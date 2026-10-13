@@ -9,14 +9,7 @@
 | | |
 |---|---|
 | ![Pi 在 Terminal tab 中运行](screenshots/01-pi-terminal.png) | ![Send to Pi 右键菜单](screenshots/02-send-to-pi.png) |
-
-<p align="center">
-  <img src="screenshots/04-session-dashboard.png" alt="Pi Session Dashboard：每个会话、pi 报告的状态、以及它正在跑的工具"/>
-</p>
-
-<p align="center">
-  <img src="screenshots/03-settings.png" alt="Pi Launcher 设置面板" width="600"/>
-</p>
+| ![Session Dashboard：每个会话、pi 报告的状态、以及它正在跑的工具](screenshots/04-session-dashboard.png) | ![Pi Launcher 设置面板](screenshots/03-settings.png) |
 
 ## 功能
 
