@@ -46,6 +46,14 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>0.3.0</h3>
+    <ul>
+        <li><b>Real session status</b> — the status bar shows what Pi is doing (working, blocked, done, error, idle) instead of a count of live tabs</li>
+        <li><b>Session Dashboard</b> — a tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error, or the tool call it is running. Click a row to jump to that session</li>
+        <li>Renaming a Terminal tab renames its session in the dashboard and the tooltip</li>
+        <li>Clicking the status bar opens the dashboard; Alt+click starts a new session</li>
+        <li>A session Pi has not reported on reads "no status from Pi", never "idle"</li>
+    </ul>
     <h3>0.2.1</h3>
     <ul>
         <li>Fix "Send to Pi" typing the file reference into the shell instead of into Pi when no session was running</li>
