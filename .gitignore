@@ -5,3 +5,6 @@ build/
 out/
 .intellijPlatform/
 .DS_Store
+
+# Browser automation output (playwright-cli snapshots and logs)
+.playwright-cli/
