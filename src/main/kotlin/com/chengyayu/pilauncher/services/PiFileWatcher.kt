@@ -5,6 +5,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
+import com.chengyayu.pilauncher.infrastructure.openFileInEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -123,7 +124,7 @@ class PiFileWatcher(private val project: Project) : Disposable, PiSessionListene
             if (!file.isValid) continue
             if (fileEditorManager.isFileOpen(file)) continue
 
-            fileEditorManager.openFile(file, false)
+            openFileInEditor(project, file, focus = false)
             opened++
         }
     }

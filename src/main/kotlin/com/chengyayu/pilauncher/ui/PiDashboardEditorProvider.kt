@@ -1,7 +1,7 @@
 package com.chengyayu.pilauncher.ui
 
+import com.chengyayu.pilauncher.infrastructure.openFileInEditor
 import com.intellij.openapi.fileEditor.FileEditor
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorPolicy
 import com.intellij.openapi.fileEditor.FileEditorProvider
 import com.intellij.openapi.fileEditor.FileEditorState
@@ -33,7 +33,7 @@ internal class PiDashboardVirtualFile : LightVirtualFile(FILE_NAME, PlainTextFil
 
         /** Open the dashboard, or bring the existing tab to the front. */
         fun open(project: Project) {
-            FileEditorManager.getInstance(project).openFile(instance(project), true)
+            openFileInEditor(project, instance(project), focus = true)
         }
 
         private fun instance(project: Project): PiDashboardVirtualFile =
