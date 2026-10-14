@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.1
+
+### Fixed
+
+- **The dashboard and the file watcher used an editor API that IntelliJ IDEA 2026.3
+  deprecates.** The Marketplace verification reported it as two warnings. Both now go
+  through `openFileEditor`, the primitive that call is built on - the overload that
+  looks like its replacement is not implemented by the platform and throws
+  `UnsupportedOperationException`.
+- **Opening a second project could clear a status channel of a session running in
+  another project.** The temporary directory holding a session's status file was shared
+  by every project, so one project's startup cleanup deleted a file another project's
+  session was actively writing to. Channels are now keyed by project.
+
+### Changed
+
+- Pi is asked **once per IDE session** whether it can host the status extension,
+  instead of once per project. The answer depends only on the Pi installation, and
+  finding out spawns a subprocess.
+
 ## 0.3.0
 
 ### Added

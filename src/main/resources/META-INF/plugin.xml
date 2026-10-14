@@ -46,6 +46,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>0.3.1</h3>
+    <ul>
+        <li>Fixed: the dashboard and auto-open used an editor API that IDEA 2026.3 deprecates — the Marketplace verification no longer reports warnings</li>
+        <li>Fixed: opening a second project could clear the status files of a session running in another project</li>
+        <li>Pi is now asked once per IDE session whether it accepts the status extension, instead of once per project</li>
+    </ul>
     <h3>0.3.0</h3>
     <ul>
         <li><b>Real session status</b> — the status bar shows what Pi is doing (working, blocked, done, error, idle) instead of a count of live tabs</li>
