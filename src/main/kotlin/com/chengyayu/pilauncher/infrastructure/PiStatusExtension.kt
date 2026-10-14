@@ -33,7 +33,9 @@ import kotlin.io.path.writeText
 internal class PiStatusExtension(
     private val piCommand: () -> String,
     private val baseDirectory: Path,
-    private val detectSupport: (extensionPath: String) -> Boolean = { probeExtensionSupport(piCommand(), it) }
+    private val detectSupport: (extensionPath: String) -> Boolean = { probeExtensionSupport(piCommand(), it) },
+    /** Shared between projects: asking Pi costs a subprocess. */
+    private val probeCache: PiStatusProbeCache = PiStatusProbeCache.UNSHARED
 ) : PiStatusChannelProvider {
 
     private val logger = Logger.getInstance(PiStatusExtension::class.java)
@@ -60,19 +62,24 @@ internal class PiStatusExtension(
 
         discardStaleSessions()
 
-        val probeExtension = prepareProbeExtension()
-        if (probeExtension == null) {
-            extensionSupported = false
-            logger.info("Pi status extension supported: false (the plugin's own resource is missing)")
-            return
-        }
-
         val startedAt = System.currentTimeMillis()
-        extensionSupported = detectSupport(probeExtension)
+        extensionSupported = probeCache.answerOrProbe(::askPi)
         logger.info(
             "Pi status extension supported: $extensionSupported " +
-                "(probed in ${System.currentTimeMillis() - startedAt} ms)"
+                "(asked in ${System.currentTimeMillis() - startedAt} ms" +
+                if (System.currentTimeMillis() - startedAt == 0L) ", from cache)" else ")"
         )
+    }
+
+    /** Runs only when no project has asked yet: it stages a copy and spends a subprocess. */
+    private fun askPi(): Boolean {
+        val probeExtension = prepareProbeExtension()
+        if (probeExtension == null) {
+            logger.info("The plugin's own status extension resource is missing")
+            return false
+        }
+
+        return detectSupport(probeExtension)
     }
 
     /** A copy Pi can be asked to load without touching any session's directory. */

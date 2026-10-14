@@ -82,6 +82,9 @@
 
         <applicationService serviceImplementation="com.chengyayu.pilauncher.settings.PiSettings"/>
 
+        <applicationService
+                serviceImplementation="com.chengyayu.pilauncher.services.ApplicationPiStatusProbeCache"/>
+
         <applicationConfigurable
                 parentId="tools"
                 instance="com.chengyayu.pilauncher.settings.PiSettingsConfigurable"

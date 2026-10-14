@@ -2,6 +2,7 @@ package com.chengyayu.pilauncher.infrastructure
 
 import com.chengyayu.pilauncher.domain.PiStatus
 import com.chengyayu.pilauncher.domain.PiStatusReport
+import com.chengyayu.pilauncher.services.ApplicationPiStatusProbeCache
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Base64
@@ -33,10 +34,15 @@ class PiStatusExtensionTest {
         }
     }
 
-    private fun extension(supported: Boolean = true) = PiStatusExtension(
+    private fun extension(
+        supported: Boolean = true,
+        directory: Path = base,
+        probeCache: PiStatusProbeCache = PiStatusProbeCache.UNSHARED
+    ) = PiStatusExtension(
         piCommand = { "pi" },
-        baseDirectory = base,
-        detectSupport = { supported }
+        baseDirectory = directory,
+        detectSupport = { supported },
+        probeCache = probeCache
     ).also { it.probe() }
 
     @Test
@@ -128,6 +134,40 @@ class PiStatusExtensionTest {
         report(channel, "\u0000\u0001 garbage")
 
         assertNull(channel.read())
+    }
+
+    /** Asking Pi costs a subprocess, so one answer serves every project. */
+    @Test
+    fun `the probe answer is shared, so a second project does not ask again`() {
+        val cache = ApplicationPiStatusProbeCache()
+        extension(supported = true, probeCache = cache)
+
+        // The second project's detection would answer "no" loudly; it must never run.
+        var askedAgain = 0
+        val second = PiStatusExtension(
+            piCommand = { "pi" },
+            baseDirectory = base.resolve("other-project"),
+            detectSupport = { askedAgain++; false },
+            probeCache = cache
+        )
+        second.probe()
+
+        assertEquals(0, askedAgain, "Pi must be asked once per IDE session, not once per project")
+        assertNotNull(second.open("Pi 1-abcd"), "the shared answer is reused instead of asking again")
+    }
+
+    /** One project starting up must not clear a session another project is running. */
+    @Test
+    fun `one project's cleanup leaves another project's sessions alone`() {
+        val runningElsewhere = extension(directory = base.resolve("other-project"))
+        val channel = assertNotNull(runningElsewhere.open("Pi 1-abcd"))
+
+        extension()
+
+        assertTrue(
+            Path.of(channel.extensionPath).exists(),
+            "clearing this project's leftovers removed another project's channel"
+        )
     }
 
     @Test

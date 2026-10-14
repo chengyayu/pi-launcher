@@ -11,6 +11,7 @@ import com.chengyayu.pilauncher.domain.PiSessionReadout
 import com.chengyayu.pilauncher.infrastructure.IdePiNotifier
 import com.chengyayu.pilauncher.infrastructure.IdeTerminalProvider
 import com.chengyayu.pilauncher.infrastructure.PiStatusExtension
+import com.chengyayu.pilauncher.infrastructure.projectKey
 import java.nio.file.Path
 import com.chengyayu.pilauncher.settings.PiSettings
 import com.chengyayu.pilauncher.settings.toLaunchOptions
@@ -22,10 +23,15 @@ import com.chengyayu.pilauncher.settings.toLaunchOptions
 @Service(Service.Level.PROJECT)
 class PiSessionService(private val project: Project) : Disposable {
 
-    /** Extracted once, and kept out of the project so a stray file cannot be committed. */
+    /**
+     * Extracted once per project, outside the project so a stray file cannot be
+     * committed, and under a key of its own so clearing this project's leftovers can
+     * never touch another project's running sessions.
+     */
     private val statusChannels = PiStatusExtension(
         piCommand = { piCommand() },
-        baseDirectory = Path.of(PathManager.getTempPath(), "pi-launcher")
+        baseDirectory = Path.of(PathManager.getTempPath(), "pi-launcher", projectKey(project)),
+        probeCache = ApplicationPiStatusProbeCache.getInstance()
     )
 
     init {
