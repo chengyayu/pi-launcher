@@ -33,7 +33,7 @@ _Avoid_: 当前会话（泛指时）、default session
 _Avoid_: start、open、run
 
 **Send to Pi**:
-把编辑器选区或文件以 `@path#L10-25` 引用的形式插入 Active Session 的输入。
+把编辑器选区、文件或文件夹以 `@path`（选区可带 `#L10-25`）引用的形式插入 Active Session 的输入。目录也是一条路径，和文件一样可以发送。
 _Avoid_: 发送给 pi、提交代码
 
 **Session Status**:

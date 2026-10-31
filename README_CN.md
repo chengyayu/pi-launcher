@@ -16,7 +16,8 @@
 - **一键启动** — 点击工具栏 π 按钮启动 Pi
 - **终端集成** — Pi 作为 IDE Terminal 窗口的一个 tab（和 Local 并列），每个会话一个 tab，可同时运行多个 Pi Session
 - **再开一个会话** — **Alt+点 π**：普通点只是聚焦当前会话
-- **发送选区** — 选中代码 → 右键 → "Send to Pi"，自动插入 `@path/file.go#L10-25` 到当前会话（Active Session）输入框
+- **发送选区** — 选中代码 → 右键 → "Send to Pi"，自动插入 `@path/file.go#L10-25` 到当前会话（Active Session）输入框；在项目树里右键**文件或文件夹**，发送它的 `@path`
+- **拖文件给 Pi** — 把截图或任意文件拖到 Pi tab 上，路径以 `@path` 插入输入框（不提交），不会再新建一个 Local tab
 - **真实状态** — 状态栏显示 pi 在做什么（`working` / `blocked` / `done` / `error` / `idle`），而不是开了几个 tab
 - **Session Dashboard** — 一个编辑器 tab 列出所有会话及其状态，以及 pi 自己说的话：卡在哪个对话框、错误首行、正在跑的工具调用
 - **重命名 tab 就等于重命名会话** — 面板与 tooltip 都用 tab 的显示名，`Pi 1` 改成 `api work` 后到处都叫 `api work`

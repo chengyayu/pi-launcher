@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Send to Pi works for folders.** Selecting a folder in the Project View used to leave
+  the action greyed out (the selection was filtered to files only); it now inserts the
+  folder's `@path` like a file's.
+
 ## 0.4.1
 
 No user-visible change: this release is the refactoring pass.

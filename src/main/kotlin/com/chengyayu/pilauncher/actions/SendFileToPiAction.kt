@@ -6,7 +6,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.chengyayu.pilauncher.domain.PiFileReference
 
 /**
- * Send one or more files from the Project View / editor tab to Pi as
+ * Send one or more files or folders from the Project View / editor tab to Pi as
  * `@relative/path` references.
  */
 class SendFileToPiAction : AnAction() {

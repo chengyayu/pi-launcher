@@ -16,7 +16,7 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 - **One-click launch** — Click the π button in the toolbar to start Pi
 - **Terminal integration** — each Pi session runs as its own tab in the IDE's Terminal window (alongside Local), so several sessions can run side by side
 - **Another session** — **Alt+click** the π button: plain click focuses the session you have
-- **Send to Pi** — Select code → Right-click → "Send to Pi" inserts `@path/file.go#L10-25` into the active session's input
+- **Send to Pi** — Select code → Right-click → "Send to Pi" inserts `@path/file.go#L10-25` into the active session's input; right-clicking a **file or folder** in the Project View sends its `@path` the same way
 - **Drop a file on Pi** — Dropping a screenshot or any file on a Pi tab inserts `@path` into its prompt (the same reference, no submit); it never starts a new terminal tab
 - **Live session status** — The status bar shows what Pi is doing (`working`, `blocked`, `done`, `error`, `idle`), not how many tabs happen to be open
 - **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running

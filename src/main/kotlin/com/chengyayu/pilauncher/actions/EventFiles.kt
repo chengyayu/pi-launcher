@@ -27,6 +27,12 @@ internal object EventFiles {
         return emptyList()
     }
 
-    /** Files that can be referenced, i.e. everything but directories. */
-    fun selectable(e: AnActionEvent): List<VirtualFile> = from(e).filterNot { it.isDirectory }
+    /**
+     * Files and folders alike: a folder is a path too, and Pi reads paths. The old
+     * `filterNot { it.isDirectory }` is what left Send to Pi greyed out in the
+     * Project View whenever a folder was selected.
+     */
+    fun selectable(files: List<VirtualFile>): List<VirtualFile> = files
+
+    fun selectable(e: AnActionEvent): List<VirtualFile> = selectable(from(e))
 }
