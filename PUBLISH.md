@@ -58,7 +58,7 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 截图不在 zip 里，`publishPlugin` 也不会碰 Media 区块，只能在插件编辑页手动上传：
 
 1. 打开 <https://plugins.jetbrains.com/plugin/34851-pi-launcher/edit>
-2. **Media** 区块上传 `screenshots/04-session-dashboard.png`（1600×1005）
+2. **Media** 区块上传 `screenshots/04-session-dashboard.png`（1600×922）
 3. 建议把它排到第一位：Session Dashboard 最能说明这个插件现在做什么
 
 ## 发布前检查
