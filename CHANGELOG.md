@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- **Send to Pi could run its reference in the shell when it started a session.** The
+  block terminal accepts the launch command before the shell has run it, so the queued
+  `@path` was typed first and zsh executed it (`no such file or directory: @path`).
+  Input now waits until the shell reports Pi running, capped at 2 s (`docs/adr/0003`).
 - **Send to Pi works for folders.** Selecting a folder in the Project View used to leave
   the action greyed out (the selection was filtered to files only); it now inserts the
   folder's `@path` like a file's.

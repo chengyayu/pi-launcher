@@ -26,14 +26,20 @@ class PiSessionTest {
     private class ManualScheduler : PiScheduler {
         private val repeating = mutableListOf<() -> Unit>()
 
+        /** One-shot work that has not run yet, in schedule order. */
+        val pending = mutableListOf<() -> Unit>()
+
         val exitPoll: () -> Unit get() = repeating.first()
 
         val statusPoll: () -> Unit get() = repeating.last()
 
         override fun schedule(delayMs: Int, repeat: Boolean, action: () -> Unit): Disposable {
-            if (repeat) repeating += action else action()
+            if (repeat) repeating += action else pending += action
             return NoopDisposable
         }
+
+        /** Runs the oldest one-shot, as if its delay had elapsed. */
+        fun runNext() = pending.removeAt(0).invoke()
     }
 
     private var exited: PiSession? = null
@@ -131,6 +137,57 @@ class PiSessionTest {
         }
 
         assertEquals(1, terminals.single().sent.size, "only the start command was sent")
+    }
+
+    @Test
+    fun `input waits until the shell reports Pi running`() {
+        val terminal = FakeTerminal()
+        terminal.commandRunning = false
+
+        newSession(terminal = terminal).use { session ->
+            session.start()
+            session.insertText("@lib/a.go ")
+
+            assertEquals(
+                listOf("pi --no-themes"),
+                terminal.sent.map { it.text },
+                "nothing may be typed while the shell has not started Pi"
+            )
+            assertTrue(manual!!.pending.isNotEmpty(), "the reference is waiting for Pi")
+
+            terminal.commandRunning = true
+            manual!!.runNext()
+
+            assertEquals("@lib/a.go ", terminal.sent.last().text)
+        }
+    }
+
+    @Test
+    fun `an unknowable liveness answer does not hold input back`() {
+        val terminal = FakeTerminal()
+        terminal.commandRunning = null
+
+        newSession(terminal = terminal).use { session ->
+            session.start()
+            session.insertText("@lib/a.go ")
+        }
+
+        assertEquals("@lib/a.go ", terminal.sent.last().text)
+    }
+
+    @Test
+    fun `input is released when the wait for a running command runs out`() {
+        val terminal = FakeTerminal()
+        terminal.commandRunning = false
+
+        newSession(terminal = terminal).use { session ->
+            session.start()
+            session.insertText("@lib/a.go ")
+
+            while (manual!!.pending.isNotEmpty()) manual!!.runNext()
+
+            assertEquals("@lib/a.go ", terminal.sent.last().text, "input must not be stranded")
+        }
     }
 
     @Test

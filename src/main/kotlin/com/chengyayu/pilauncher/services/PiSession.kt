@@ -68,15 +68,15 @@ internal class PiSession(
     private var statusCheck: Disposable? = null
 
     /**
-     * Input that arrived before the start command reached the pty, in arrival
-     * order. Null once Pi has been launched, when input goes straight through.
+     * Input that arrived before the shell started Pi, in arrival order. Null once the
+     * input has been released, when later input goes straight through.
      */
     private var queuedInput: MutableList<PromptInput>? = mutableListOf()
 
     val isRunning: Boolean get() = !exited
 
     fun start() {
-        commandDispatcher.submit(terminal, startCommand, onDelivered = ::flushQueuedInput)
+        commandDispatcher.submit(terminal, startCommand, onDelivered = ::flushWhenRunning)
         watchForExit()
         watchStatus()
     }
@@ -107,11 +107,27 @@ internal class PiSession(
         else terminal.send(text, submit) { }
     }
 
-    private fun flushQueuedInput() = synchronized(this) {
+    /**
+     * Releases queued input once the shell reports Pi running.
+     *
+     * "The widget accepted the launch command" is not "the shell has run it": the block
+     * terminal's `sendCommandToExecute` returns first, and a reference flushed in that gap
+     * lands in front of the command line, where the shell runs both as one command
+     * (`docs/adr/0003`). A foreground child is the observable end of that gap. When the
+     * engine cannot tell (`null`), or the wait runs out, the input is released anyway
+     * rather than stranded.
+     */
+    private fun flushWhenRunning(attemptsLeft: Int = FLUSH_ATTEMPTS): Unit = synchronized(this) {
         val queued = queuedInput ?: return
-        queuedInput = null
-        // Sent while holding the lock: input arriving now must not overtake it.
-        queued.forEach { terminal.send(it.text, it.submit) { } }
+
+        if (terminal.isForegroundCommandRunning() != false || attemptsLeft == 0) {
+            queuedInput = null
+            // Sent while holding the lock: input arriving now must not overtake it.
+            queued.forEach { terminal.send(it.text, it.submit) { } }
+            return
+        }
+
+        scheduler.schedule(FLUSH_POLL_MILLIS, repeat = false) { flushWhenRunning(attemptsLeft - 1) }
     }
 
     /**
@@ -192,6 +208,10 @@ internal class PiSession(
         const val STATUS_POLL_INTERVAL_MILLIS = 400
         const val STARTUP_GRACE_MILLIS = 6_000
         const val EXIT_STREAK_THRESHOLD = 2
+
+        /** How long queued input waits for the shell to report Pi running. */
+        const val FLUSH_POLL_MILLIS = 100
+        const val FLUSH_ATTEMPTS = 20
     }
 
     private data class PromptInput(val text: String, val submit: Boolean)

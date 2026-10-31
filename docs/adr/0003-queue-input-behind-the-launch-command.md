@@ -48,3 +48,27 @@ behaviour instead of hanging.
 - A queued reference appears when the pty accepts the launch command, which is still
   before Pi is ready to read it. Those bytes wait in the pty buffer as typeahead - the
   same place a user's fast typing ends up - rather than being typed into the shell.
+
+## Amendment: delivered is not running
+
+The settle delay plus "the widget accepted the command" is not enough on the block
+engine: `sendCommandToExecute` returns before the shell has run the command, so the
+queued reference was released first and zsh ran both on one line:
+
+```
+> @udcp-job/validate @udcp-job/vendor @udcp-job/.gitignore PI_IMAGE_PROTOCOL=none pi ...
+zsh: no such file or directory: @udcp-job/validate
+```
+
+What was tried:
+
+- **Write through the tty connector first.** On the block engine that connector is an
+  RD proxy whose `write` returns without reaching the pty, so the launch command never
+  ran at all. Reverted.
+- **Wait for a foreground child.** `isForegroundCommandRunning()` is the observable end
+  of the gap: it answers `true` once the shell has started Pi. Input is held until then,
+  polled every 100 ms for up to 2 s, and released anyway when the engine answers `null`
+  (unknown) or the wait runs out - the same non-stranding rule as above.
+
+So "delivered" still means "the widget took the command"; the session no longer treats
+that as "Pi is running".
