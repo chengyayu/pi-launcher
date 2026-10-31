@@ -6,12 +6,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
 
 /**
- * Notified with the whole set of sessions whenever one is created, closed,
- * focused, or reports a new Session Status.
- *
- * A snapshot rather than a delta: the status bar and the Session Dashboard both
- * render the same list, and neither should be able to drift out of step by
- * missing an event.
+ * The whole set of sessions, as a snapshot rather than a delta, so the status bar and the
+ * dashboard cannot drift out of step by missing an event.
  */
 fun interface PiSessionStatusListener {
     fun sessionsChanged(sessions: List<PiSessionReadout>)

@@ -17,17 +17,13 @@ import java.nio.file.Path
 import com.chengyayu.pilauncher.settings.PiSettings
 import com.chengyayu.pilauncher.settings.toLaunchOptions
 
-/**
- * Project-facing entry point; the logic lives in [PiSessionRegistry], because a
- * platform service may only be constructed from a `Project`.
- */
+/** Project-facing entry point; the logic lives in [PiSessionRegistry]. */
 @Service(Service.Level.PROJECT)
 class PiSessionService(private val project: Project) : Disposable {
 
     /**
-     * Extracted once per project, outside the project so a stray file cannot be
-     * committed, and under a key of its own so clearing this project's leftovers can
-     * never touch another project's running sessions.
+     * Outside the project so a stray file cannot be committed, and keyed per project so
+     * clearing this project's leftovers cannot touch another project's sessions.
      */
     private val statusChannels = PiStatusExtension(
         piCommand = { piCommand() },
@@ -53,13 +49,11 @@ class PiSessionService(private val project: Project) : Disposable {
     )
 
     init {
-        // PiFileWatcher subscribes to the count topic in its initializer, and
-        // project services are created lazily, so it must be touched here.
+        // PiFileWatcher subscribes in its initializer, and project services are created lazily.
         PiFileWatcher.getInstance(project)
 
-        // Both answers cost a subprocess, so they are asked in the background. A
-        // session launched before they arrive simply reports Inferred Status and has
-        // no identity to come back to.
+        // Probing runs a subprocess, so it happens in the background; a session launched
+        // before the answer arrives reports Inferred Status and has no identity to reopen.
         ApplicationManager.getApplication().executeOnPooledThread { statusChannels.probe() }
     }
 
@@ -69,7 +63,7 @@ class PiSessionService(private val project: Project) : Disposable {
 
     val runningCount: Int get() = registry.runningCount
 
-    /** Every session, parked ones included, for the status bar and the Session Dashboard. */
+    /** Every session, parked ones included. */
     val readouts: List<PiSessionReadout> get() = registry.readouts
 
     fun isRunning(): Boolean = registry.isRunning()
@@ -78,10 +72,8 @@ class PiSessionService(private val project: Project) : Disposable {
 
     fun newSession() = registry.newSession()
 
-    /** Reopen a parked session on the conversation Pi still stores for it. */
     fun resume(id: String) = registry.resume(id)
 
-    /** Rename a parked session; a live one is renamed through its Host. */
     fun renameParked(id: String, name: String) = registry.renameParked(id, name)
 
     fun submitText(text: String) = registry.submitText(text)
@@ -90,7 +82,6 @@ class PiSessionService(private val project: Project) : Disposable {
 
     fun focus() = registry.focus()
 
-    /** Bring the session in [tabName] to the front, if it is still running. */
     fun focus(tabName: String) = registry.focus(tabName)
 
     override fun dispose() = registry.dispose()

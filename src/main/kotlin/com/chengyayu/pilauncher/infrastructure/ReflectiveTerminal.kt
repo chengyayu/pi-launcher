@@ -7,8 +7,8 @@ import javax.swing.JComponent
 import javax.swing.Timer
 
 /**
- * Adapter over a terminal widget (`TerminalWidget`), reached by reflection so both
- * the classic and the block engine work (`docs/adr/0002`).
+ * Adapter over a terminal widget (`TerminalWidget`), reached by reflection so both the classic
+ * and the block engine work (`docs/adr/0002`).
  */
 internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
 
@@ -30,13 +30,9 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
     }
 
     /**
-     * Takes over file drops on the terminal's own component.
-     *
-     * The platform installs its handler on the whole tool window, and that handler
-     * decides between "insert the path" and "open a terminal here" by the drop
-     * point - a drop that lands on the tab strip wins the latter and opens a new
-     * tab. A target on the content wins over the tool window's one, so a Pi tab
-     * always gets the drop (`docs/adr/0008`).
+     * The platform's handler on the whole tool window decides by drop point and opens a new
+     * `Local` tab when the drop lands on the tab strip; a target on the content wins instead
+     * (`docs/adr/0008`).
      */
     private fun installDropTarget() {
         val component = (widget as? ComponentContainer)?.component ?: widget as? JComponent ?: run {
@@ -67,12 +63,7 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
             .install()
     }
 
-    /**
-     * A drop is prompt input, so it belongs to the session and queues behind the launch
-     * command there (`docs/adr/0003`). The listener is bound in the same EDT turn that
-     * opens the tab, so a drop cannot normally arrive first; if one does, the paths are
-     * dropped and logged rather than typed into a shell Pi is not running in yet.
-     */
+    /** A drop is prompt input, so it queues behind the launch command in the session (`docs/adr/0003`). */
     private fun deliverDropped(paths: List<String>) {
         val listener = dropListener
         if (listener == null) {
@@ -83,11 +74,7 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
         listener(paths)
     }
 
-    /**
-     * The engine's own liveness APIs are unusable (`isConnected()` answers
-     * `false` for pty4j local terminals), so the shell's process tree is read
-     * through the tty connector instead.
-     */
+    /** `isConnected()` answers `false` for pty4j local terminals, so the shell's process tree is read instead. */
     override fun isForegroundCommandRunning(): Boolean? {
         val process = realConnector()?.callOrNull(GET_PROCESS) as? Process ?: return null
 
@@ -111,9 +98,8 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
     }
 
     /**
-     * Answered `false` only when no delivery mechanism existed yet, which is the
-     * one failure that may be retried. A call that *threw* may have gone through,
-     * so it counts as delivered and is left alone rather than submitted twice.
+     * `false` only when no delivery mechanism existed yet - the one failure worth retrying. A
+     * call that threw may have gone through, so it counts as delivered rather than sent twice.
      */
     private fun deliver(text: String, submit: Boolean): Boolean = try {
         if (submit) submitCommand(text) else typeText(text)
@@ -122,11 +108,7 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
         true
     }
 
-    /**
-     * Gives up eventually rather than retrying forever, and always reports the
-     * outcome: a caller holding input back for this send must be released even
-     * when the terminal never becomes ready.
-     */
+    /** Always reports the outcome: a caller holding input back must be released even when the terminal never becomes ready. */
     private fun retry(text: String, submit: Boolean, attemptsLeft: Int, onDelivered: () -> Unit) {
         if (attemptsLeft == 0) {
             logger.warn("Pi terminal never became ready for input: $text")

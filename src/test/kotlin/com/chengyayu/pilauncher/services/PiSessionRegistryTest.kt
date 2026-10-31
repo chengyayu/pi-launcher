@@ -493,8 +493,6 @@ class PiSessionRegistryTest {
         }
     }
 
-    // ---- fakes -------------------------------------------------------------
-
     private object NoopDisposable : Disposable {
         override fun dispose() = Unit
     }
@@ -554,17 +552,14 @@ class PiSessionRegistryTest {
             renameListener = listener
         }
 
-        /** Simulates the user renaming a Terminal tab. */
         fun rename(oldName: String, newName: String) {
             renameListener?.invoke(oldName, newName)
         }
 
-        /** Simulates the user clicking a Terminal tab. */
         fun select(tabName: String) {
             selectionListener?.invoke(tabName)
         }
 
-        /** Simulates the user closing a Terminal tab. */
         fun close(tabName: String) {
             closed += tabName
             closeListener?.invoke(tabName)

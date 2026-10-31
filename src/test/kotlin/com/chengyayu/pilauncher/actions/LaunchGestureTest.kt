@@ -5,11 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Which gesture the π button was: "launch" focuses the session you have, so starting a
- * second one needs a gesture of its own - and Alt is the only one, now that the separate
- * "New Pi Session" button is gone.
- */
+/** Which gesture the π button was: a plain click focuses the session you have, Alt starts another. */
 class LaunchGestureTest {
 
     @Test

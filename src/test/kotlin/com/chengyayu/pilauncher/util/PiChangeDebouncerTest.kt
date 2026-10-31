@@ -7,13 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The debouncer used to silently lose keys: it copied the pending set and then
- * cleared it outside any atomic swap, so a submit landing in that window saw a
- * non-empty set, skipped scheduling, and was wiped by the following clear.
- *
- * These tests pin the invariant that a submitted key is always delivered.
- */
+/** A submitted key is always delivered, even when it lands while a flush is draining. */
 class PiChangeDebouncerTest {
 
     /** Runs the flush callback inline so assertions are deterministic. */
@@ -52,8 +46,7 @@ class PiChangeDebouncerTest {
 
     @Test
     fun `keys submitted while a flush is draining are still delivered`() {
-        // Reproduces the old race: the first flush is mid-flight when a new key
-        // arrives. Before the fix that key was cleared and never re-scheduled.
+        // The old race: the first flush is mid-flight when a new key arrives.
         val seen = ConcurrentLinkedQueue<String>()
         val firstFlushStarted = CountDownLatch(1)
         val releaseFirstFlush = CountDownLatch(1)
@@ -71,7 +64,6 @@ class PiChangeDebouncerTest {
             it.submit("first.go")
             assertTrue(firstFlushStarted.await(2, TimeUnit.SECONDS), "first flush should start")
 
-            // Submit while the first flush is blocked mid-drain.
             it.submit("during-flush.go")
             releaseFirstFlush.countDown()
 
@@ -177,12 +169,7 @@ class PiChangeDebouncerTest {
     }
 }
 
-/**
- * Stress variant: many threads submit while flushes are constantly draining.
- * The pre-fix implementation copied the pending set and cleared it outside the
- * atomic swap, so keys landing in that window were cleared without a follow-up
- * flush ever being scheduled - they were lost silently.
- */
+/** Many threads submit while flushes drain: no key may be lost. */
 class PiChangeDebouncerConcurrencyTest {
 
     @Test

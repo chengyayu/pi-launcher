@@ -16,19 +16,9 @@ import kotlin.io.path.writeText
 /**
  * Hosts Pi's status extension and reads back what it reports (`docs/adr/0005`).
  *
- * Pi cannot be observed from outside - its own status protocol is an OSC sequence the
- * IDE terminal drops - so the plugin puts a reporter *inside* it. Each session gets
- * its own copy of [EXTENSION_RESOURCE] in a private directory, the copy's path is
- * handed to Pi's `--extension` flag, and the `status` file the copy writes beside
- * itself is what this provider reads.
- *
- * One copy per session is what lets the extension locate its report through
- * `__dirname`: no environment variable has to survive the user's shell, and no
- * terminal internals are touched.
- *
- * Everything here is best effort. A Pi that cannot load extensions, a missing
- * resource, an unwritable directory - each of those costs Session Status and returns
- * `null`, which callers render as Inferred Status. None of them may stop a session.
+ * Each session gets its own copy of the extension in a private directory, so the copy finds
+ * the report it writes through `__dirname` without any environment variable. Everything here
+ * is best effort: a Pi that cannot load extensions costs a Session Status, never a session.
  */
 internal class PiStatusExtension(
     private val piCommand: () -> String,
@@ -40,23 +30,17 @@ internal class PiStatusExtension(
 
     private val logger = Logger.getInstance(PiStatusExtension::class.java)
 
-    /** The extension source, read once; null when the plugin's own resource is missing. */
+    /** The extension source, read once. */
     private val extensionText: String? by lazy { readResource() }
 
     /**
-     * Whether Pi accepts `--extension`. Null until the probe answers, and `false`
-     * means every session degrades. It is never guessed: passing a flag Pi does not
-     * know would stop it from starting at all.
+     * Never guessed: passing a flag Pi does not know would stop it from starting at all.
+     * Null until the probe answers.
      */
     @Volatile
     private var extensionSupported: Boolean? = null
 
-    /**
-     * Decides once whether status reporting is possible, in the background.
-     *
-     * Called when the project opens rather than on the first launch, so a session
-     * started by hand a moment later already has an answer.
-     */
+    /** Called when the project opens, so a session started by hand a moment later has an answer. */
     fun probe() {
         if (extensionSupported != null) return
 
@@ -82,7 +66,6 @@ internal class PiStatusExtension(
         return detectSupport(probeExtension)
     }
 
-    /** A copy Pi can be asked to load without touching any session's directory. */
     private fun prepareProbeExtension(): String? {
         val text = extensionText ?: return null
         return try {
@@ -98,8 +81,7 @@ internal class PiStatusExtension(
     override fun open(sessionId: String): PiStatusChannel? {
         val supported = extensionSupported
         if (supported == null) {
-            // The probe runs when the project opens; a session launched in the same
-            // breath reports Inferred Status rather than waiting on it.
+            // A session started before the probe answers reports Inferred Status rather than waiting.
             logger.info("Pi status support is not known yet; $sessionId will infer its status")
             return null
         }
@@ -169,34 +151,28 @@ internal class PiStatusExtension(
         const val EXTENSION_FILE_NAME = "status.ts"
         const val SESSIONS_DIRECTORY = "sessions"
         const val PROBE_DIRECTORY = "probe"
-        const val EXTENSION_FLAG = "--extension"
-        const val HELP_FLAG = "--help"
-        const val PROBE_TIMEOUT_MILLIS = 20_000
         val UNSAFE_CHARACTERS = Regex("[^A-Za-z0-9._-]")
     }
 }
 
+private const val EXTENSION_FLAG = "--extension"
+private const val HELP_FLAG = "--help"
+private const val PROBE_TIMEOUT_MILLIS = 20_000
+
 /**
- * Asks Pi itself whether it knows `--extension`.
- *
- * Top level rather than a member: it is the default for a constructor parameter, and
- * a session must never be handed a flag its Pi would reject - that would stop it from
- * starting at all. The command is the user's and may not even be on PATH, so a failure
- * here is an answer too.
+ * Asks Pi itself whether it knows `--extension`, because a flag it rejects would stop a session
+ * from starting. A failure here is an answer too: the command is the user's and may not be on PATH.
  */
 private fun probeExtensionSupport(command: String, extensionPath: String): Boolean = try {
     val line = GeneralCommandLine(ParametersListUtil.parse(command))
-        // The shell's environment, not the IDE's: a Pi installed through npm or a
-        // version manager is on the terminal's PATH but usually not on the PATH an
-        // IDE launched from the Dock inherits, and the terminal is where Pi runs.
+        // The terminal's environment, not the IDE's: an npm or version-manager Pi is on the
+        // terminal's PATH but usually not on the PATH an IDE launched from the Dock inherits.
         .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-        // The real extension, so this also proves Pi can load ours. The path must
-        // follow the flag: Pi would otherwise read `--help` as the extension to load
-        // and never print help at all, which is how this probe first got it wrong.
-        .withParameters("--extension")
+        // The extension must follow the flag, or Pi reads `--help` as the extension and never prints it.
+        .withParameters(EXTENSION_FLAG)
         .withParameters(extensionPath)
-        .withParameters("--help")
-    val output = CapturingProcessHandler(line).runProcess(20_000)
+        .withParameters(HELP_FLAG)
+    val output = CapturingProcessHandler(line).runProcess(PROBE_TIMEOUT_MILLIS)
     (output.stdout + output.stderr).contains("--extension")
 } catch (e: Exception) {
     Logger.getInstance("com.chengyayu.pilauncher.infrastructure.PiStatusExtension")

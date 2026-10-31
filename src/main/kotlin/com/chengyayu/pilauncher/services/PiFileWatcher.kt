@@ -21,16 +21,9 @@ import com.chengyayu.pilauncher.settings.PiSettings
 import com.chengyayu.pilauncher.util.PiChangeDebouncer
 
 /**
- * Watches for file changes made by Pi while a session is running.
- *
- * The plugin deliberately opens **no** diff and shows **no** notification for
- * those changes: a single Pi session can rewrite dozens of files, and surfacing
- * them as editor tabs is unusable. Review the work with `git diff`.
- *
- * What remains is the optional "auto-open files" convenience, which is off by
- * default and, when enabled, is debounced, filtered, capped and run on the EDT.
- *
- * Watching follows the sessions: it runs while at least one is alive.
+ * Watches for files Pi rewrites. Only the optional auto-open uses them (off by default,
+ * debounced, filtered, capped, on the EDT): a session rewrites dozens of files, so diffs and
+ * per-file notifications would be unusable. Review the work with `git diff`.
  */
 @Service(Service.Level.PROJECT)
 class PiFileWatcher(private val project: Project) : Disposable, PiSessionListener {
@@ -59,10 +52,7 @@ class PiFileWatcher(private val project: Project) : Disposable, PiSessionListene
         }
     }
 
-    /**
-     * Runs on the EDT. During indexing the editor model must not be touched, so
-     * the paths are handed back for a later retry instead of being dropped.
-     */
+    /** On the EDT. While indexing the editor must not be touched, so the paths are handed back for a retry. */
     private fun onFlush(paths: List<String>): List<String> {
         if (DumbService.getInstance(project).isDumb) return paths
         openChangedFiles(paths)
@@ -108,10 +98,7 @@ class PiFileWatcher(private val project: Project) : Disposable, PiSessionListene
         debouncer.clear()
     }
 
-    /**
-     * Opens at most [MAX_AUTO_OPEN_FILES] files per batch so a project-wide
-     * rewrite cannot flood the editor with hundreds of tabs.
-     */
+    /** At most [MAX_AUTO_OPEN_FILES] per batch: a project-wide rewrite must not flood the editor. */
     private fun openChangedFiles(paths: List<String>) {
         if (!isWatching) return
 
@@ -137,10 +124,9 @@ class PiFileWatcher(private val project: Project) : Disposable, PiSessionListene
     }
 
     companion object {
-        /** Wait for pi to stop writing before touching the editor. */
+        /** Wait for Pi to stop writing before touching the editor. */
         private const val AUTO_OPEN_DEBOUNCE_MS = 600
 
-        /** Hard cap on auto-opened editors per write burst. */
         private const val MAX_AUTO_OPEN_FILES = 10
 
         fun getInstance(project: Project): PiFileWatcher = project.service()

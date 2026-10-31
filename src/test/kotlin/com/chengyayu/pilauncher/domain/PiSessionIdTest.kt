@@ -5,9 +5,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The identity comes from Pi (`docs/adr/0006`), so all the plugin does with it is decide
- * whether it may reach a command line: Pi accepts letters, numbers, `.`, `_` and `-`,
- * starting and ending with a letter or a number.
+ * Ids come from Pi (`docs/adr/0006`); the plugin only checks that one may reach a command line,
+ * under Pi's own rules: letters, numbers, `.`, `_` and `-`, starting and ending with a letter or
+ * a number.
  */
 class PiSessionIdTest {
 

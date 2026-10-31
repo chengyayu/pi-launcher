@@ -8,10 +8,8 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 
 /**
- * The per-project [PiSessionStore] backed by a state file.
- *
- * Per project because a Pi Session belongs to one working directory: Pi itself looks
- * sessions up per project, so an id from another project would not resolve.
+ * The per-project [PiSessionStore] backed by a state file. Per project because Pi looks
+ * sessions up per working directory, so an id from another project would not resolve.
  */
 @Service(Service.Level.PROJECT)
 @State(
@@ -20,7 +18,7 @@ import com.intellij.openapi.project.Project
 )
 class PersistentPiSessionStore : PiSessionStore, PersistentStateComponent<PersistentPiSessionStore.Bean> {
 
-    /** The persisted shape. Plain mutable classes with defaults, as the serializer expects. */
+    /** Plain mutable classes with defaults, as the serializer expects. */
     class Bean(var sessions: MutableList<Record> = mutableListOf())
 
     class Record(var id: String = "", var displayName: String = "", var closedAt: Long = 0)

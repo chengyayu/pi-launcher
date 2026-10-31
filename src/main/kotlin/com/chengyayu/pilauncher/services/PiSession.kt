@@ -12,26 +12,17 @@ import com.chengyayu.pilauncher.util.PiScheduler
 /**
  * One running Pi: a Host showing a `pi` process, watched until it exits.
  *
- * Creation belongs to [PiSessionRegistry]; a session starts with its Host already
- * attached. An exit is not reported to the user - `/exit` and a crash cannot be told
- * apart - but [onExited] tells the registry to stop counting it.
- *
- * Input sent before the start command has reached the terminal is held back: the
- * pty belongs to a plain shell until then, and text typed into it would be run
- * as part of the `pi …` command line instead of reaching Pi's prompt
- * (`docs/adr/0003`).
+ * An exit is not reported - `/exit` and a crash cannot be told apart - [onExited] only tells
+ * the registry to stop counting the run. Input that arrives before the shell has started Pi is
+ * held back, or the shell would run it as part of the command line (`docs/adr/0003`).
  */
 internal class PiSession(
-    /** The Host's display name, as the user sees it. Renaming the Host updates it. */
+    /** The Host's display name; renaming the Host updates it. */
     @Volatile
     var tabName: String,
-    /**
-     * Pi's identity for this conversation: the id a resumed session already has, or the
-     * one Pi reports once it has started (`docs/adr/0006`). It outlives this run;
-     * [channelId] does not.
-     */
+    /** Outlives this run, unlike [channelId]: the id a resumed session has, or the one Pi reports (`docs/adr/0006`). */
     id: String?,
-    /** The status channel's directory name: unique per run, discarded when the run ends. */
+    /** The status channel's directory name: unique per run. */
     val channelId: String,
     private val terminal: PiTerminal,
     private val startCommand: String,
@@ -53,11 +44,7 @@ internal class PiSession(
     private var exited = false
 
     /**
-     * The last Session Status Pi reported, or null when none arrived yet.
-     *
-     * Null is a real answer, not a missing one: it means this session has no
-     * Status Source or has not spoken yet, and callers must show Inferred Status
-     * rather than treat the session as idle.
+     * Null when Pi has not reported yet or cannot report at all. A real answer, never `idle`.
      */
     @Volatile
     var status: PiStatus? = null
@@ -67,10 +54,7 @@ internal class PiSession(
 
     private var statusCheck: Disposable? = null
 
-    /**
-     * Input that arrived before the shell started Pi, in arrival order. Null once the
-     * input has been released, when later input goes straight through.
-     */
+    /** Input that arrived before the shell started Pi, in arrival order; null once released. */
     private var queuedInput: MutableList<PromptInput>? = mutableListOf()
 
     val isRunning: Boolean get() = !exited
@@ -81,20 +65,11 @@ internal class PiSession(
         watchStatus()
     }
 
-    /** Send [text] and submit it. */
     fun submitText(text: String) = send(text, submit = true)
 
-    /** Type [text] into the prompt without submitting it. */
     fun insertText(text: String) = send(text, submit = false)
 
-    /**
-     * Type the files the user dropped onto this session's terminal as prompt
-     * references, leaving them unsent.
-     *
-     * The paths are the drop's, not the project's: the same `@` rendering as Send to
-     * Pi, so a dropped screenshot outside the project keeps its absolute path
-     * (`docs/adr/0008`).
-     */
+    /** The same `@` rendering as Send to Pi, so a path outside the project stays absolute (`docs/adr/0008`). */
     fun insertFiles(basePath: String?, paths: List<String>) {
         if (paths.isEmpty()) return
 
@@ -108,14 +83,10 @@ internal class PiSession(
     }
 
     /**
-     * Releases queued input once the shell reports Pi running.
-     *
-     * "The widget accepted the launch command" is not "the shell has run it": the block
-     * terminal's `sendCommandToExecute` returns first, and a reference flushed in that gap
-     * lands in front of the command line, where the shell runs both as one command
-     * (`docs/adr/0003`). A foreground child is the observable end of that gap. When the
-     * engine cannot tell (`null`), or the wait runs out, the input is released anyway
-     * rather than stranded.
+     * Releases queued input once the shell reports Pi running - `sendCommandToExecute` returns
+     * before the shell has run the command, and a reference flushed in that gap lands in front
+     * of the command line. `null` (engine cannot tell) and a timeout release it anyway
+     * (`docs/adr/0003`).
      */
     private fun flushWhenRunning(attemptsLeft: Int = FLUSH_ATTEMPTS): Unit = synchronized(this) {
         val queued = queuedInput ?: return
@@ -130,10 +101,7 @@ internal class PiSession(
         scheduler.schedule(FLUSH_POLL_MILLIS, repeat = false) { flushWhenRunning(attemptsLeft - 1) }
     }
 
-    /**
-     * Polls for the exit. The startup grace absorbs the window before the shell
-     * has a child, and a streak requirement absorbs transient gaps.
-     */
+    /** The startup grace absorbs the window before the shell has a child; the streak absorbs transient gaps. */
     private fun watchForExit() {
         val startedAt = clock()
         var emptyObservations = 0
@@ -158,12 +126,9 @@ internal class PiSession(
     }
 
     /**
-     * Polls the status channel Pi writes to.
-     *
-     * A poll rather than a filesystem watch: the reporter replaces its file
-     * atomically on every event, and one `stat` every few hundred milliseconds is
-     * both cheaper and far less surprising than a watch on a file that keeps being
-     * renamed out from under the watch service.
+     * A poll rather than a filesystem watch: the reporter replaces its file atomically, so a
+     * `stat` every few hundred milliseconds is cheaper than watching a file that keeps being
+     * renamed out from under the service.
      */
     private fun watchStatus() {
         val source = statusSource ?: return
@@ -181,12 +146,7 @@ internal class PiSession(
         }
     }
 
-    /**
-     * Takes Pi's identity the first time Pi says it, and never again.
-     *
-     * The id is what the dashboard reopens a closed session with, so it has to be the one
-     * Pi stored the conversation under; a later report must not be able to change it.
-     */
+    /** Only the first valid id Pi reports: the dashboard reopens the session with it, so it must not change later. */
     private fun adoptIdentity(reported: String?): Boolean {
         if (id != null || reported == null) return false
         if (!PiSessionId.isValid(reported)) return false

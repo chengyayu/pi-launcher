@@ -2,36 +2,27 @@ package com.chengyayu.pilauncher.infrastructure
 
 import com.chengyayu.pilauncher.domain.PiSessionReport
 
-/** Reads what Pi last reported - its state and its identity; null when it reported nothing. */
+/** Reads what Pi last reported - state and identity; null when it reported nothing. */
 fun interface PiStatusSource {
     fun read(): PiSessionReport?
 }
 
 /**
- * One session's channel for Pi's own status reports (`docs/adr/0005`).
- *
- * Pi cannot be observed from outside, so the plugin puts a reporter inside it: the
- * channel's extension file is handed to Pi's `--extension` flag and writes the
- * report the channel reads back.
+ * One session's status source: a file whose extension Pi loads with `--extension` and whose
+ * report the plugin reads back (`docs/adr/0005`).
  */
 interface PiStatusChannel : PiStatusSource {
 
-    /** Path passed to Pi's `--extension` flag, quoted by [com.chengyayu.pilauncher.domain.PiCommandLine]. */
+    /** Quoted by [com.chengyayu.pilauncher.domain.PiCommandLine] before it reaches a command line. */
     val extensionPath: String
 }
 
-/**
- * Opens and closes per-session status channels.
- *
- * A provider that cannot host one returns `null`, and the session then has no Status
- * Source at all: it degrades to Inferred Status instead of guessing.
- */
+/** Opens and closes per-session status channels. */
 interface PiStatusChannelProvider {
 
-    /** A channel for [sessionId], or null when this Pi cannot host one. */
+    /** Null when this Pi cannot host an extension: the session then reads `no status from Pi`. */
     fun open(sessionId: String): PiStatusChannel?
 
-    /** Forget everything written for [sessionId]. */
     fun close(sessionId: String)
 
     companion object {

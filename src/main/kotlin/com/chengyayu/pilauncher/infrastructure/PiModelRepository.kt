@@ -7,10 +7,8 @@ import com.chengyayu.pilauncher.domain.PiModel
 import java.io.File
 
 /**
- * Reads the models Pi advertises in `~/.pi/agent/models.json`.
- *
- * Any failure degrades to an empty list: a malformed or missing file must never
- * stop the plugin from working.
+ * Reads the models Pi advertises in `~/.pi/agent/models.json`; any failure degrades to an
+ * empty list rather than breaking the plugin.
  */
 interface PiModelRepository {
     fun loadModels(): List<PiModel>

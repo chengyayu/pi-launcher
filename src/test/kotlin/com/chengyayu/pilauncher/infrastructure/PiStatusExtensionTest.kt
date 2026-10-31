@@ -18,11 +18,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * The plugin's half of `docs/adr/0005`: put a reporter inside Pi, then read what it
- * writes. These tests never start Pi - they drive the file channel the extension and
- * the plugin share.
- */
+/** The plugin's half of `docs/adr/0005`: drive the file channel the extension and the plugin share, without starting Pi. */
 class PiStatusExtensionTest {
 
     private val base: Path = Files.createTempDirectory("pi-launcher-test")

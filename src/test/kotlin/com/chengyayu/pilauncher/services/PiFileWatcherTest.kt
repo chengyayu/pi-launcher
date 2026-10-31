@@ -6,11 +6,7 @@ import kotlin.test.assertFalse
 
 class PiFileWatcherTest {
 
-    /**
-     * A session can rewrite dozens of files. Opening them as editor tabs is only
-     * acceptable when the user explicitly asks for it, so the default must stay
-     * off - if it ever flips, every Pi session would start opening editors.
-     */
+    /** Auto-open must stay off: otherwise every Pi session starts opening dozens of editors. */
     @Test
     fun `auto-open defaults to off`() {
         assertFalse(PiSettings.State().autoOpenFiles)

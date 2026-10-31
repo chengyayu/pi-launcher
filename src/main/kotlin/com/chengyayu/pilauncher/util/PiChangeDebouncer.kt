@@ -7,28 +7,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Coalesces a burst of events into a single callback.
+ * Coalesces a burst of events into one [onFlush] call, dispatched through [dispatch] (the UI
+ * thread): acting on every event of a `gofmt -w` opened dozens of tabs at once.
  *
- * Pi (and the tools it runs, e.g. `gofmt`) writes files many times in quick
- * succession, and a single session may touch many files. Acting on every event
- * opened dozens of editor tabs and eventually froze the IDE. This debouncer:
+ * Keys [onFlush] could not handle yet (the IDE is indexing) are re-queued with a longer delay
+ * instead of dropped. [submit] may be called from any thread and the pending set is swapped
+ * atomically, so a key is never lost.
  *
- *  - accumulates distinct keys for [delayMs],
- *  - then delivers them to [onFlush] through [dispatch],
- *  - and never lets more than one flush be scheduled at a time.
- *
- * [onFlush] may return keys it could not handle yet (for example because the IDE
- * is indexing). Those are re-queued with a longer delay instead of being
- * dropped, because a dropped key stays invisible for the rest of the session.
- *
- * Thread-safety: [submit] may be called from any thread; [onFlush] runs through
- * [dispatch]. The pending set is swapped out atomically so a key submitted while
- * a flush is draining can never be lost.
- *
- * Deliberately free of IDE types so it can be unit tested with a direct
- * [dispatch].
- *
- * @param dispatch runs a task on the UI thread; injectable for tests.
+ * Free of IDE types on purpose, so it can be unit tested with a direct [dispatch].
  */
 class PiChangeDebouncer(
     private val delayMs: Int,
@@ -57,8 +43,7 @@ class PiChangeDebouncer(
         synchronized(this) {
             if (disposed.get()) return
 
-            // Add before deciding whether to schedule: a flush draining right now
-            // must not be able to swallow these keys without a follow-up flush.
+            // Add before scheduling: a flush draining right now must not swallow these keys.
             pending.updateAndGet { it + keys }
 
             if (retry) retrying = true

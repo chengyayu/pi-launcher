@@ -20,20 +20,9 @@ import javax.swing.JPanel
 import javax.swing.ListSelectionModel
 
 /**
- * The Session Dashboard: every Pi Session, with the Session Status Pi reports for the
- * ones that are running (`docs/adr/0005`).
- *
- * It renders the state it is given and never invents one - a session without a report
- * reads "no status from Pi", and a session with no Host reads "not running", which are
- * three different things and stay three different things.
- *
- * It is also the one surface that does not depend on a Host, which is why a parked
- * session is reopened from here (`docs/adr/0006`).
- *
- * Deliberately quiet: showing a session in its Host, reopening a parked one, renaming
- * a parked one, and starting a new one. Anything that could disturb a *running* session
- * - interrupting it, killing its run - belongs in the Host it runs in, where the user
- * can see what happens.
+ * The Session Dashboard: every Pi Session and the Session Status Pi reports for the running
+ * ones (`docs/adr/0005`). It never invents a state, and it only offers actions that cannot
+ * disturb a running session - showing, reopening, renaming, starting another (`docs/adr/0006`).
  */
 internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
@@ -62,7 +51,7 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
         table.columnModel.getColumn(COLUMN_DETAIL).preferredWidth = JBUI.scale(320)
 
         table.addMouseListener(object : MouseAdapter() {
-            /** Clicking a running session is a request to look at it, so it goes straight there. */
+            /** Looking at a running session means going to it. */
             override fun mouseClicked(event: MouseEvent) {
                 if (event.clickCount != 1 || table.rowAtPoint(event.point) < 0) return
                 if (selected()?.running == true) focusSelected()
@@ -116,7 +105,7 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
     private fun updateActions() {
         val session = selected()
         showInTerminal.isEnabled = session?.running == true
-        // Reopening and renaming a parked session are the two actions that only exist here.
+        // The two actions that only exist here.
         resume.isEnabled = session != null && !session.running && session.id != null
         rename.isEnabled = session != null && !session.running && session.id != null
     }

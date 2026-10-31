@@ -4,10 +4,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
 
-/**
- * Notified whenever the running-session count changes, so the status bar can
- * refresh and file watching can follow the sessions.
- */
+/** The running-session count; file watching follows it. */
 fun interface PiSessionListener {
     fun sessionCountChanged(runningCount: Int)
 

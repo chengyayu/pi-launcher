@@ -5,12 +5,7 @@ import com.chengyayu.pilauncher.infrastructure.FilePiModelRepository
 import com.chengyayu.pilauncher.infrastructure.PiModelRepository
 import javax.swing.JComponent
 
-/**
- * Settings → Tools → Pi Launcher.
- *
- * Instantiated reflectively by the platform, so it must keep a no-argument
- * constructor; the form itself is delegated to [PiSettingsForm].
- */
+/** Instantiated reflectively by the platform, so it must keep a no-argument constructor. */
 class PiSettingsConfigurable : Configurable {
 
     private val models: PiModelRepository = FilePiModelRepository()

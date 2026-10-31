@@ -13,19 +13,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 /**
- * Pins what the terminal really does with OSC 7501.
- *
- * This test exists because ADR 0004 was built on the opposite assumption: reading
- * `JediEmulator.doProcessOsc` bytecode, the `processCustomCommand` call looked like
- * the `default` branch. It is not. The switch routes only **OSC 104 and OSC 1341**
- * there; every other code - 7501 included - falls through to `default`, which
- * returns "not handled" and drops the sequence. Verified on IC-243.21565.193 and on
- * the 2026.2 build the plugin also runs on, which are identical here.
- *
- * So no plugin-side listener can observe Pi's Session Status reports, and the status
- * has to come from a channel the plugin owns. Keep this test: it is the evidence for
- * that constraint, and the reason a future "just listen for the OSC" attempt must
- * come back here first.
+ * Pins what the terminal really does with OSC 7501: `JediEmulator` forwards only OSC 104 and
+ * 1341 to `processCustomCommand`, so 7501 is dropped without being drawn - which is why the
+ * status has to come from a channel the plugin owns (`docs/adr/0004`, verified on IC-243.21565.193
+ * and the 2026.2 build). A future "just listen for the OSC" attempt must come back here first.
  */
 class ProgramStatusOscDispatchTest {
 
@@ -58,10 +49,6 @@ class ProgramStatusOscDispatchTest {
         assertEquals(listOf("key=value"), received.single())
     }
 
-    /**
-     * OSC 7501 is dropped, not drawn, which is why nothing looks broken in the
-     * terminal while the status stays invisible to the plugin.
-     */
     @Test
     fun `does not draw OSC 7501 either`() {
         val buffer = TerminalTextBuffer(80, 24, StyleState())
@@ -74,10 +61,7 @@ class ProgramStatusOscDispatchTest {
         assertFalse(drawn.contains("state="), "the report leaked onto the screen: $drawn")
     }
 
-    /**
-     * The terminal writes into [buffer], which is why the caller passes it in: a test
-     * that inspects a buffer of its own would assert nothing at all.
-     */
+    /** The caller passes the buffer in: one of its own would be written to by nothing. */
     private fun terminalWithListener(
         buffer: TerminalTextBuffer = TerminalTextBuffer(80, 24, StyleState())
     ): Pair<JediTerminal, MutableList<List<String>>> {
@@ -110,9 +94,8 @@ class ProgramStatusOscDispatchTest {
     } as TerminalDisplay
 
     /**
-     * A fixed byte source. `AppendableTerminalDataStream` looks like the natural
-     * choice but blocks on an empty queue - it feeds a live terminal - so an
-     * exhausted stream has to raise `EOF`, which is how the emulator is told to stop.
+     * A fixed byte source. `AppendableTerminalDataStream` blocks on an empty queue, so an
+     * exhausted stream has to raise `EOF` - that is how the emulator is told to stop.
      */
     private class StaticDataStream(private val text: String) : TerminalDataStream {
         private var index = 0

@@ -6,10 +6,7 @@ import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFileSystemItem
 
-/**
- * Resolves the files an action was invoked on, tolerating the several shapes the
- * platform delivers them in (editor, project view, PSI).
- */
+/** Resolves what an action was invoked on, in the shapes the platform delivers (editor, project view, PSI). */
 internal object EventFiles {
 
     fun from(e: AnActionEvent): List<VirtualFile> {
@@ -28,9 +25,8 @@ internal object EventFiles {
     }
 
     /**
-     * Files and folders alike: a folder is a path too, and Pi reads paths. The old
-     * `filterNot { it.isDirectory }` is what left Send to Pi greyed out in the
-     * Project View whenever a folder was selected.
+     * Files and folders alike: a folder is a path too, and Pi reads paths. Filtering out
+     * directories is what used to grey out Send to Pi for a folder.
      */
     fun selectable(files: List<VirtualFile>): List<VirtualFile> = files
 

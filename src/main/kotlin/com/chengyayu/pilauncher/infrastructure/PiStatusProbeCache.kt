@@ -1,18 +1,13 @@
 package com.chengyayu.pilauncher.infrastructure
 
-/**
- * Answers "can this Pi host the status extension?", once per IDE session.
- *
- * The answer depends only on the Pi installation, which is the same in every project,
- * and finding out costs a subprocess - so a second project must not ask again.
- */
+/** "Can this Pi host the status extension?" - asked once per IDE session, since probing runs a subprocess. */
 fun interface PiStatusProbeCache {
 
-    /** Returns the remembered answer, or runs [detect] and remembers its result. */
+    /** The remembered answer, or the result of running [detect] and remembering it. */
     fun answerOrProbe(detect: () -> Boolean): Boolean
 
     companion object {
-        /** Asks [detect] every time; for tests and for callers without a cache. */
+        /** Asks every time; for tests and callers without a cache. */
         val UNSHARED: PiStatusProbeCache = PiStatusProbeCache { it() }
     }
 }

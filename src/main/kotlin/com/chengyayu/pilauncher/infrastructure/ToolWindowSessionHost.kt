@@ -9,14 +9,8 @@ import com.intellij.ui.content.ContentManagerListener
 import java.beans.PropertyChangeListener
 
 /**
- * The [PiSessionHost] backed by the IDE's Terminal tool window.
- *
- * Tabs are created through the engine-agnostic `createShellWidget` and remembered
- * by name, so several Pi tabs can coexist and be focused independently; the
- * reflective access lives in [ReflectiveTerminal] (`docs/adr/0002`).
- *
- * Everything Content-specific lives here on purpose: an editor-tab Host
- * (`docs/adr/0006`) shares none of it, and the registry must not have to know.
+ * The [PiSessionHost] backed by the IDE's Terminal tool window: tabs created through the
+ * engine-agnostic `createShellWidget` and remembered by name (`docs/adr/0002`).
  */
 class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
 
@@ -69,11 +63,7 @@ class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
     override fun shownNames(): Set<String> =
         contentManager()?.contents?.map { it.displayName }?.toSet() ?: emptySet()
 
-    /**
-     * A renamed tab keeps its `Content` and changes only its display name, so both
-     * the lookup table and the registry have to follow it (`Content.PROP_DISPLAY_NAME`
-     * is what the platform's own rename actions fire).
-     */
+    /** A rename keeps the same `Content` and only changes its display name, so both the lookup table and the registry follow it. */
     private val renameReporter = PropertyChangeListener { event ->
         if (event.propertyName != Content.PROP_DISPLAY_NAME) return@PropertyChangeListener
 
@@ -85,11 +75,7 @@ class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
         renameListener?.invoke(oldName, newName)
     }
 
-    /**
-     * Tracks which Pi tab the user is on, and drops tabs the user closed. Only
-     * tabs this provider created are reported, so foreign terminal tabs are
-     * ignored.
-     */
+    /** Reports this provider's own tabs only, so foreign terminal tabs are ignored. */
     private fun installTabListeners() {
         if (listenersInstalled) return
         val contentManager = contentManager() ?: return
@@ -100,8 +86,7 @@ class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
             }
 
             override fun contentRemoved(event: ContentManagerEvent) {
-                // Found by identity: after a rename the display name is the new one,
-                // but the lookup table is what decides whether this tab was ours.
+                // By identity: after a rename the display name differs from the key.
                 val tabName = tabs.entries.firstOrNull { it.value === event.content }?.key ?: return
                 tabs.remove(tabName)
                 closeListener?.invoke(tabName)
@@ -110,7 +95,7 @@ class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
         listenersInstalled = true
     }
 
-    /** `createShellWidget` is the engine-agnostic API; older platforms have only the latter. */
+    /** `createShellWidget` is the engine-agnostic API; older platforms have only `createLocalShellWidget`. */
     private fun createShellWidget(workingDirectory: String, tabName: String): Any? {
         val manager = terminalToolWindowManager()
         manager.javaClass.methodOrNull(

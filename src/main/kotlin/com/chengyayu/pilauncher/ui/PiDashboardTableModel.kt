@@ -4,12 +4,7 @@ import com.chengyayu.pilauncher.domain.PiSessionReadout
 import com.chengyayu.pilauncher.domain.PiStatusReadout
 import javax.swing.table.AbstractTableModel
 
-/**
- * The Session Dashboard's rows: one per Pi Session, in registry order.
- *
- * Kept apart from the panel so the mapping from a readout to a cell is testable
- * without a UI.
- */
+/** One row per Pi Session; separate from the panel so the readout -> cell mapping is testable. */
 internal class PiDashboardTableModel : AbstractTableModel() {
 
     private var sessions: List<PiSessionReadout> = emptyList()

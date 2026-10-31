@@ -5,12 +5,8 @@ import com.intellij.ide.dnd.FileCopyPasteUtil
 import java.awt.datatransfer.DataFlavor
 
 /**
- * What a terminal drop carries.
- *
- * A drop from Finder arrives as a `DnDNativeTarget.EventInfo`, a drop from the
- * IDE's own tree as a `TransferableWrapper`; the platform's helper understands
- * both. A drop with neither files nor text yields nothing, which is how the
- * caller tells "this is not ours" from "nothing to insert".
+ * What a terminal drop carries: a Finder drop and a drop from the IDE's tree arrive in
+ * different shapes, and the platform's helper understands both.
  */
 internal object DroppedFiles {
 
@@ -22,7 +18,7 @@ internal object DroppedFiles {
             .filter { it.isNotBlank() }
     }
 
-    /** The text a native drop carries, if any; the same flavour the platform reads. */
+    /** The text a native drop carries, if any. */
     fun textOf(attachedObject: Any?): String? {
         val info = attachedObject as? DnDNativeTarget.EventInfo ?: return null
         val transferable = info.transferable ?: return null

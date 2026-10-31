@@ -330,8 +330,6 @@ class PiSessionTest {
         }
     }
 
-    // ---- fakes -------------------------------------------------------------
-
     private val terminals = mutableListOf<FakeTerminal>()
 
     private object NoopDisposable : Disposable {

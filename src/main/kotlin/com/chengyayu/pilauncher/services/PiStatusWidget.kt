@@ -11,14 +11,8 @@ import com.intellij.util.Consumer
 import java.awt.event.MouseEvent
 
 /**
- * Status bar entry for the Pi Sessions of this project.
- *
- * It listens on the topic rather than reading the registry, keeping the registry
- * free of any dependency on the UI that displays it.
- *
- * The text names what Pi says it is doing - `blocked` first, because it is the only
- * state that needs the user - and a session that has not reported yet is counted as
- * `unknown` rather than assumed idle (`docs/adr/0004`).
+ * Status bar entry for this project's Pi Sessions. It listens on the topic rather than reading
+ * the registry, so the registry knows nothing about the UI that displays it.
  */
 class PiStatusWidget(private val project: Project) :
     StatusBarWidget,
@@ -44,7 +38,7 @@ class PiStatusWidget(private val project: Project) :
 
     override fun install(statusBar: StatusBar) {
         this.statusBar = statusBar
-        // The widget can be installed after sessions started; catch up once.
+        // The widget can be installed after sessions started.
         sessions = PiSessionService.getInstance(project).readouts
     }
 
@@ -54,10 +48,7 @@ class PiStatusWidget(private val project: Project) :
 
     override fun getTooltipText(): String = "${PiStatusReadout.tooltip(sessions)} · $CLICK_HINT"
 
-    /**
-     * Clicking opens the Session Dashboard; Alt-click starts a session without
-     * leaving whatever is on screen.
-     */
+    /** Clicking opens the Session Dashboard; Alt-click starts a session without leaving what is on screen. */
     override fun getClickConsumer(): Consumer<MouseEvent> = Consumer { event ->
         if (event.isAltDown) {
             PiSessionService.getInstance(project).newSession()

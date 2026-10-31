@@ -7,22 +7,12 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VirtualFile
 
 /**
- * Shared helpers deciding whether a VFS change is something the Pi plugin
- * should react to.
- *
- * Keeping these guards in place is what stops a `go build` / `gofmt -w ./...` /
- * `git checkout` inside the project from touching the editor for hundreds of
- * files at once.
+ * Guards that keep a `go build`, `gofmt -w ./...` or `git checkout` inside the project from
+ * opening hundreds of editor tabs at once.
  */
 object PiVfsFilter {
 
-    /**
-     * A change is relevant only when it is a real content change of a file that
-     * belongs to the project's content (not an excluded directory, not ignored
-     * by VCS/file-type rules, not binary).
-     *
-     * Safe to call from a background thread (VFS change listener thread).
-     */
+    /** A project file that is neither ignored nor binary; safe from the VFS thread. */
     fun isRelevantChange(project: Project, file: VirtualFile): Boolean {
         if (!file.isValid || file.isDirectory) return false
 

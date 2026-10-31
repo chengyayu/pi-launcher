@@ -5,10 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/**
- * The temporary directory key that keeps one project's status channels away from
- * another's. It has to be safe as a file name and stable across restarts.
- */
+/** Keeps one project's status channels away from another's; safe as a file name and stable across restarts. */
 class PiProjectKeyTest {
 
     @Test

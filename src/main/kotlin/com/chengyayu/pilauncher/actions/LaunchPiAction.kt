@@ -6,12 +6,8 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import java.awt.event.InputEvent
 
 /**
- * One-click launch: focuses the Active Session, or starts a new one when no session is
- * running. Alt-click always starts an additional session.
- *
- * Alt is the only way to ask for a second session: a separate "New Pi Session" button
- * next to the terminal's own `+` was one more icon saying what this one already says,
- * and a context menu entry nobody opens first.
+ * One-click launch: focuses the Active Session, or starts a new one when none is running;
+ * Alt-click always starts an additional one.
  */
 class LaunchPiAction : AnAction() {
 

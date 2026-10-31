@@ -12,13 +12,7 @@ import java.awt.Font
 import javax.swing.JCheckBox
 import javax.swing.JPanel
 
-/**
- * The Swing form behind Settings → Tools → Pi Launcher, plus the mapping between
- * its widgets and [PiSettings.State].
- *
- * Kept separate from [PiSettingsConfigurable] so the Configurable only deals with
- * the lifecycle contract.
- */
+/** The widgets behind Settings → Tools → Pi Launcher, and the mapping to [PiSettings.State]. */
 internal class PiSettingsForm(
     state: PiSettings.State,
     modelOptions: Array<String>
@@ -52,8 +46,7 @@ internal class PiSettingsForm(
             listOf(modelCombo, customModelField, thinkingLevelCombo).forEach {
                 it.preferredSize = Dimension(FIELD_WIDTH, it.preferredSize.height)
             }
-            // Illustrate the expected format with a model the user actually has,
-            // rather than a hard-coded vendor example.
+            // Show the format with a model the user actually has, rather than a vendor example.
             customModelField.emptyText.text =
                 modelOptions.firstOrNull { it != PiLaunchOptions.DEFAULT_VALUE }
                     ?: "provider/model-id"

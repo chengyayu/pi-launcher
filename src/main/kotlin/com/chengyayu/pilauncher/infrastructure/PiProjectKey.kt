@@ -5,12 +5,8 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * A stable, filesystem-safe directory name for a project, used to keep its temporary
- * status channels away from every other project's.
- *
- * The path is hashed rather than trusted to the directory name, because directory
- * names collide (`~/work/api` and `~/personal/api`) and because the key has to survive
- * a restart: the next run still has to recognise, and clean up, its own leftovers.
+ * A stable, filesystem-safe directory name for a project. Hashed because directory names
+ * collide, and stable so the next run still recognises and cleans up its own leftovers.
  */
 internal fun projectKey(project: Project): String = projectKey(project.basePath, project.name)
 

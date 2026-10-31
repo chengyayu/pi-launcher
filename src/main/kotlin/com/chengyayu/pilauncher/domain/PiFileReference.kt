@@ -1,9 +1,6 @@
 package com.chengyayu.pilauncher.domain
 
-/**
- * A reference to a file, optionally narrowed to a line range, in the format the
- * Pi prompt understands: `@relative/path#L10-25`.
- */
+/** A path, optionally narrowed to a line range, in the format the Pi prompt understands. */
 data class PiFileReference(
     val path: String,
     val startLine: Int? = null,
@@ -19,11 +16,10 @@ data class PiFileReference(
     }
 
     companion object {
-        /** A whole-file reference. */
         fun ofFile(projectBasePath: String?, filePath: String): PiFileReference =
             PiFileReference(relativize(projectBasePath, filePath))
 
-        /** A reference to an inclusive, 1-based line range. */
+        /** An inclusive, 1-based line range. */
         fun ofRange(projectBasePath: String?, filePath: String, startLine: Int, endLine: Int): PiFileReference =
             PiFileReference(relativize(projectBasePath, filePath), startLine, endLine)
 

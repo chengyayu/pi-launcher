@@ -17,12 +17,9 @@ import java.beans.PropertyChangeListener
 import javax.swing.JComponent
 
 /**
- * The Session Dashboard's virtual file: there is no file on disk, and there is only
- * ever one of these per project, so opening the dashboard always lands on the same
- * tab instead of piling up duplicates.
- *
- * The platform keys editors by `VirtualFile` identity, which is what makes the
- * singleton work. Nothing here is persisted, so a restart simply forgets the tab.
+ * The Session Dashboard's virtual file: one per project, so opening the dashboard always lands
+ * on the same tab. The platform keys editors by `VirtualFile` identity, which is what makes it
+ * a singleton.
  */
 internal class PiDashboardVirtualFile : LightVirtualFile(FILE_NAME, PlainTextFileType.INSTANCE, "") {
 

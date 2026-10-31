@@ -4,12 +4,7 @@ import com.chengyayu.pilauncher.infrastructure.PiStatusProbeCache
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 
-/**
- * The one probe result for this IDE session, shared by every project.
- *
- * Probing runs `pi --help`, and the answer depends only on the Pi installation, so
- * opening a second project must not pay for it again.
- */
+/** One probe result per IDE session: probing runs `pi --help`, so a second project must not pay for it again. */
 @Service(Service.Level.APP)
 class ApplicationPiStatusProbeCache : PiStatusProbeCache {
 
@@ -19,8 +14,7 @@ class ApplicationPiStatusProbeCache : PiStatusProbeCache {
     override fun answerOrProbe(detect: () -> Boolean): Boolean {
         answer?.let { return it }
 
-        // A project that asks while the first answer is still coming waits here
-        // instead of starting a second subprocess. Both callers run off the EDT.
+        // A caller asking while the first answer is still coming waits instead of starting a second subprocess.
         return synchronized(this) {
             answer ?: detect().also { answer = it }
         }

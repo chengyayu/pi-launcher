@@ -1,34 +1,28 @@
 package com.chengyayu.pilauncher.domain
 
 /**
- * A Session Status: what Pi reports about its own execution, as opposed to what the
- * plugin can infer from a process being alive.
- *
- * Pi publishes this through the status extension the plugin loads into it
- * (`docs/adr/0005`); it is the only trustworthy source, so a missing report must
- * degrade to Inferred Status rather than to a guess dressed up as this.
+ * What Pi reports about its own execution, via the extension the plugin loads into it
+ * (`docs/adr/0005`). Not to be confused with Inferred Status.
  */
 data class PiStatus(
     val state: State,
-    /** What Pi is waiting on. Pi only sets it for [State.BLOCKED]. */
+    /** Only set for [State.BLOCKED]. */
     val kind: Kind? = null,
-    /** Pi's own words about this state: a dialog title, an error's first line. */
+    /** Pi's own words: a dialog title, an error's first line. */
     val message: String? = null,
-    /** What Pi is doing right now, such as the tool call it is running. */
+    /** The tool call it is running right now, if any. */
     val activity: String? = null
 ) {
 
     enum class State(val wireName: String) {
-        /** An agent run or a compaction is in progress. */
         WORKING("working"),
 
-        /** A blocking dialog is waiting for the user. */
+        /** A dialog is waiting for the user. */
         BLOCKED("blocked"),
 
-        /** A run finished. */
         DONE("done"),
 
-        /** A run ended with an error that Pi did not retry. */
+        /** Pi did not retry the error. */
         ERROR("error"),
 
         /** Pi started, or the user cancelled the run. */
@@ -39,7 +33,7 @@ data class PiStatus(
         }
     }
 
-    /** The kind of blocking prompt Pi raised; these are the extension UI prompts. */
+    /** The blocking prompts the extension UI can raise. */
     enum class Kind(val wireName: String) {
         CONFIRM("confirm"),
         SELECT("select"),

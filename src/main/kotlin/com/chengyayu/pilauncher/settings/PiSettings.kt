@@ -40,9 +40,8 @@ class PiSettings : PersistentStateComponent<PiSettings.State> {
 }
 
 /**
- * Translates persisted settings into the domain model used to build the CLI
- * command. A custom model id wins over the drop-down, and "Default" means
- * "let Pi decide".
+ * Translates persisted settings into the domain model used to build the CLI command: a custom
+ * model id wins over the drop-down, and "Default" means "let Pi decide".
  */
 fun PiSettings.State.toLaunchOptions(): PiLaunchOptions = PiLaunchOptions(
     command = piCommand.ifBlank { PiLaunchOptions.DEFAULT_COMMAND },

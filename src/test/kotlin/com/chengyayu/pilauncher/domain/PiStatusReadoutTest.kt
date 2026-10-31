@@ -7,8 +7,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * What the status bar says. A session without a Session Status must read as
- * unknown: calling it idle would be exactly the lie ADR 0004 exists to prevent.
+ * What the status bar says. A session without a Session Status must read as unknown; calling it
+ * idle is the lie the status extension exists to prevent (`docs/adr/0005`).
  */
 class PiStatusReadoutTest {
 

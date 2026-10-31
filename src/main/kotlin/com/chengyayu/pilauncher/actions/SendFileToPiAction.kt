@@ -5,10 +5,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.chengyayu.pilauncher.domain.PiFileReference
 
-/**
- * Send one or more files or folders from the Project View / editor tab to Pi as
- * `@relative/path` references.
- */
+/** Sends one or more files or folders from the Project View / editor tab as `@relative/path` references. */
 class SendFileToPiAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -27,9 +24,8 @@ class SendFileToPiAction : AnAction() {
     }
 
     /**
-     * Resolving the selected files reads PSI (`psi.Element.array`), which the
-     * platform only allows off the EDT; leaving the default update thread makes
-     * every right-click in the Project View log an internal error.
+     * Resolving the selection reads PSI, which the platform only allows off the EDT; on the
+     * default update thread every right-click in the Project View logs an internal error.
      */
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 }

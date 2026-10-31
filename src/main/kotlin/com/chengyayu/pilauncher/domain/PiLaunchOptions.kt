@@ -1,10 +1,6 @@
 package com.chengyayu.pilauncher.domain
 
-/**
- * The user-facing inputs that determine how the Pi CLI is started.
- *
- * Pure data with no IDE types, so it can be unit tested and reused.
- */
+/** The user-facing inputs that determine how the Pi CLI is started. */
 data class PiLaunchOptions(
     val command: String = DEFAULT_COMMAND,
     val model: String? = null,
@@ -14,7 +10,7 @@ data class PiLaunchOptions(
     companion object {
         const val DEFAULT_COMMAND = "pi"
 
-        /** Sentinel used by the settings UI for "let Pi decide". */
+        /** Sentinel the settings UI uses for "let Pi decide". */
         const val DEFAULT_VALUE = "Default"
     }
 }

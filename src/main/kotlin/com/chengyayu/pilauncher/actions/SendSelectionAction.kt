@@ -5,11 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.chengyayu.pilauncher.domain.PiFileReference
 
-/**
- * Send the selected code to Pi as `@relative/path#Lstart-end`.
- *
- * With no selection the whole file is referenced.
- */
+/** Sends the selection as `@relative/path#Lstart-end`; the whole file when nothing is selected. */
 class SendSelectionAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
