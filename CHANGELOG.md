@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+### Changed
+
+- **One π button.** The terminal toolbar's own π button and the "New Pi Session"
+  context-menu entry are gone; **Alt+click** the toolbar's π button to start an
+  additional session, while a plain click keeps focusing the current one. The
+  dashboard keeps its own New Pi Session button.
 
 ### Fixed
 
