@@ -23,7 +23,6 @@ class PiSettings : PersistentStateComponent<PiSettings.State> {
         var customModelId: String = "",
         var thinkingLevel: String = PiLaunchOptions.DEFAULT_VALUE,
         var autoOpenFiles: Boolean = false,
-        var shellPath: String = "",
         var extraArgs: String = ""
     )
 
