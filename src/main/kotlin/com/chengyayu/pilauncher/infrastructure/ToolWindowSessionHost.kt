@@ -39,26 +39,26 @@ class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
         renameListener = listener
     }
 
-    override fun open(workingDirectory: String, tabName: String): PiTerminal {
-        val widget = createShellWidget(workingDirectory, tabName)
-        if (widget == null) error("the Terminal tool window created no widget for $tabName")
+    override fun open(workingDirectory: String, name: String): PiTerminal {
+        val widget = createShellWidget(workingDirectory, name)
+        if (widget == null) error("the Terminal tool window created no widget for $name")
 
         installTabListeners()
         contentManager()?.contents
-            ?.lastOrNull { it.displayName == tabName }
+            ?.lastOrNull { it.displayName == name }
             ?.let { content ->
-                tabs[tabName] = content
+                tabs[name] = content
                 content.addPropertyChangeListener(renameReporter)
             }
 
-        focus(tabName)
+        focus(name)
         return ReflectiveTerminal(widget)
     }
 
-    override fun focus(tabName: String) {
+    override fun focus(name: String) {
         installTabListeners()
         val toolWindow = toolWindow() ?: return
-        val content = tabs[tabName] ?: return
+        val content = tabs[name] ?: return
 
         toolWindow.show {
             toolWindow.contentManager.setSelectedContent(content, true)

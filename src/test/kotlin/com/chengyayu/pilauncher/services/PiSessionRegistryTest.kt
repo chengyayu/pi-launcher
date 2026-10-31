@@ -63,7 +63,7 @@ class PiSessionRegistryTest {
             startCommands += extensionPath
             "pi --no-themes"
         },
-        resumeCommand = { id, extensionPath ->
+        resumeCommand = { id, _ ->
             resumeCommands += id
             "pi --session $id"
         },
@@ -527,15 +527,15 @@ class PiSessionRegistryTest {
         private var closeListener: ((String) -> Unit)? = null
         private var renameListener: ((String, String) -> Unit)? = null
 
-        override fun open(workingDirectory: String, tabName: String): PiTerminal {
+        override fun open(workingDirectory: String, name: String): PiTerminal {
             if (failOnCreate) error("terminal unavailable")
             createdWorkingDirectory = workingDirectory
             val terminal = FakeTerminal()
-            created += CreatedTab(tabName, terminal)
+            created += CreatedTab(name, terminal)
             return terminal
         }
 
-        override fun focus(tabName: String) {
+        override fun focus(name: String) {
             focusCount++
         }
 

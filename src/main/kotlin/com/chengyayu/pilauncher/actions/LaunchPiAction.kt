@@ -19,7 +19,7 @@ class LaunchPiAction : AnAction() {
         val project = e.project ?: return
         val service = PiSessionService.getInstance(project)
 
-        if (startsAnotherSession(e.modifiers)) service.newSession() else service.launch()
+        if (startsAnotherSession(e.inputEvent?.modifiersEx ?: 0)) service.newSession() else service.launch()
     }
 
     override fun update(e: AnActionEvent) {
@@ -28,4 +28,5 @@ class LaunchPiAction : AnAction() {
 }
 
 /** Alt means "another one, not the one I have". Read separately so it can be tested. */
-internal fun startsAnotherSession(modifiers: Int): Boolean = modifiers and InputEvent.ALT_MASK != 0
+internal fun startsAnotherSession(extendedModifiers: Int): Boolean =
+    extendedModifiers and InputEvent.ALT_DOWN_MASK != 0

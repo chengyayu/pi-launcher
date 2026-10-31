@@ -19,13 +19,13 @@ class LaunchGestureTest {
 
     @Test
     fun `alt-click always starts another session`() {
-        assertTrue(startsAnotherSession(InputEvent.ALT_MASK))
-        assertTrue(startsAnotherSession(InputEvent.ALT_MASK or InputEvent.SHIFT_MASK))
+        assertTrue(startsAnotherSession(InputEvent.ALT_DOWN_MASK))
+        assertTrue(startsAnotherSession(InputEvent.ALT_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK))
     }
 
     @Test
     fun `other modifiers do not mean another session`() {
-        assertFalse(startsAnotherSession(InputEvent.SHIFT_MASK))
-        assertFalse(startsAnotherSession(InputEvent.META_MASK or InputEvent.CTRL_MASK))
+        assertFalse(startsAnotherSession(InputEvent.SHIFT_DOWN_MASK))
+        assertFalse(startsAnotherSession(InputEvent.META_DOWN_MASK or InputEvent.CTRL_DOWN_MASK))
     }
 }
