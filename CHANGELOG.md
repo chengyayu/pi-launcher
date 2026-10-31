@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+
+- **Pi loads its own themes again.** The launch command no longer passes `--no-themes`:
+  the flag disables Pi's theme discovery, which never affected the IDE terminal's
+  colours - it only kept Pi from using the user's theme files.
+
 ### Fixed
 
 - **Send to Pi could run its reference in the shell when it started a session.** The

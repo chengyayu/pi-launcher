@@ -22,51 +22,51 @@ class PiCommandLineTest {
     ) = PiCommandLine.resume(options, sessionId, extensionPath, windows = false)
 
     @Test
-    fun `renders the bare command with themes disabled`() {
-        assertEquals("$noImages pi --no-themes", render())
+    fun `renders the bare command`() {
+        assertEquals("$noImages pi", render())
     }
 
     @Test
     fun `appends model and thinking level`() {
         assertEquals(
-            "$noImages pi --model magpie/auto --thinking high --no-themes",
+            "$noImages pi --model magpie/auto --thinking high",
             render(PiLaunchOptions(model = "magpie/auto", thinkingLevel = "high"))
         )
     }
 
     @Test
     fun `ignores blank model and thinking level`() {
-        assertEquals("$noImages pi --no-themes", render(PiLaunchOptions(model = "  ", thinkingLevel = "")))
+        assertEquals("$noImages pi", render(PiLaunchOptions(model = "  ", thinkingLevel = "")))
     }
 
     @Test
     fun `falls back to the default command when blank`() {
-        assertEquals("$noImages pi --no-themes", render(PiLaunchOptions(command = " ")))
+        assertEquals("$noImages pi", render(PiLaunchOptions(command = " ")))
     }
 
     @Test
     fun `keeps extra arguments verbatim and last`() {
         assertEquals(
-            "$noImages pi --model p/m --no-themes --verbose --foo=bar",
+            "$noImages pi --model p/m --verbose --foo=bar",
             render(PiLaunchOptions(model = "p/m", extraArgs = "--verbose --foo=bar"))
         )
     }
 
     @Test
     fun `trims extra arguments`() {
-        assertEquals("$noImages pi --no-themes --x", render(PiLaunchOptions(extraArgs = "   --x   ")))
+        assertEquals("$noImages pi --x", render(PiLaunchOptions(extraArgs = "   --x   ")))
     }
 
     @Test
     fun `does not emit an empty extra argument segment`() {
         assertFalse(render(PiLaunchOptions(extraArgs = "   ")).endsWith(" "))
-        assertTrue(render().contains("--no-themes"))
+        assertFalse(render().contains("--no-themes"), "Pi loads its own themes")
     }
 
     @Test
     fun `loads the status extension when there is one`() {
         assertEquals(
-            "$noImages pi --extension \"/tmp/pi-launcher/status.ts\" --no-themes",
+            "$noImages pi --extension \"/tmp/pi-launcher/status.ts\"",
             render(extensionPath = "/tmp/pi-launcher/status.ts")
         )
     }
@@ -81,8 +81,8 @@ class PiCommandLineTest {
 
     @Test
     fun `omits the extension flag when Pi cannot host one`() {
-        assertEquals("$noImages pi --no-themes", render(extensionPath = null))
-        assertEquals("$noImages pi --no-themes", render(extensionPath = "  "))
+        assertEquals("$noImages pi", render(extensionPath = null))
+        assertEquals("$noImages pi", render(extensionPath = "  "))
     }
 
     /**
@@ -109,7 +109,7 @@ class PiCommandLineTest {
         )
 
         assertEquals(
-            "$noImages pi --extension \"/tmp/pi-launcher/pi 1/status.ts\" --session pilaunch-0a1b2c3d --no-themes",
+            "$noImages pi --extension \"/tmp/pi-launcher/pi 1/status.ts\" --session pilaunch-0a1b2c3d",
             command
         )
         assertFalse(command.contains("--session-id"), "Pi rejects --session-id together with --session")
@@ -118,7 +118,7 @@ class PiCommandLineTest {
     @Test
     fun `keeps the extra arguments when resuming`() {
         assertEquals(
-            "$noImages pi --session pilaunch-0a1b2c3d --no-themes --verbose",
+            "$noImages pi --session pilaunch-0a1b2c3d --verbose",
             resume(PiLaunchOptions(extraArgs = "--verbose"), "pilaunch-0a1b2c3d")
         )
     }
@@ -138,7 +138,7 @@ class PiCommandLineTest {
     @Test
     fun `sets the image protocol the way PowerShell does`() {
         assertEquals(
-            "\$env:PI_IMAGE_PROTOCOL='none'; pi --no-themes",
+            "\$env:PI_IMAGE_PROTOCOL='none'; pi",
             PiCommandLine.render(PiLaunchOptions(), windows = true)
         )
     }

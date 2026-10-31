@@ -8,12 +8,6 @@ package com.chengyayu.pilauncher.domain
 object PiCommandLine {
 
     /**
-     * Pi renders its own footer and expects to own the screen, so the IDE
-     * terminal themes are always disabled.
-     */
-    private const val NO_THEMES = "--no-themes"
-
-    /**
      * How Pi is told to load the reporter that gives it a Session Status
      * (`docs/adr/0005`).
      */
@@ -67,8 +61,6 @@ object PiCommandLine {
             parts += it
         }
 
-        parts += NO_THEMES
-
         options.extraArgs.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
 
         return parts.joinToString(" ")
@@ -95,7 +87,6 @@ object PiCommandLine {
 
         parts += SESSION
         parts += sessionId
-        parts += NO_THEMES
 
         options.extraArgs.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
 
