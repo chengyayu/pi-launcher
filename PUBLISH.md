@@ -65,8 +65,16 @@ echo 'publishToken=<你的 token>' >> ~/.gradle/gradle.properties
 
 - [ ] `./gradlew test` 通过
 - [ ] 在真实 IDE 里手工验证：启动 / 状态栏 / Send to Pi / 设置面板
+- [ ] 状态栏打开 dashboard 时它落在**当前窗口的真实 tab**：不是预览页（标签不是斜体）、
+      不单开窗口、拿到焦点。这是 `openFileInEditor(focus = true)` 的唯一调用点
+- [ ] 开启自动打开改动文件后从外部改一个文件：它同样开在真实 tab 里，但**不抢焦点**，
+      且一批最多 `MAX_AUTO_OPEN_FILES` 个。这是 `openFileInEditor(focus = false)` 的唯一调用点
 - [ ] `plugin.xml` 的 `<change-notes>` 已更新
 - [ ] tag 与 `build.gradle.kts` 的 `version` 一致（workflow 会硬校验，不一致直接红）
+
+两条 tab 落点只能靠运行中的 IDE 判：`OpenFileDescriptor` 与它替掉的
+`FileEditorManager.openFileEditor` 在 API 层面等价，verifier 只能查废弃与结构，查不到
+“开到了哪个 tab”。
 
 ## 兼容性校验：只看 JetBrains 官方结果
 
