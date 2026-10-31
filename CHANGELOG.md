@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.4
+
+No user-visible change: this release clears the last verification warning.
+
+### Changed
+
+- **The dashboard and changed files open through `OpenFileDescriptor`.** 2026.3 deprecates
+  every blocking `FileEditorManager.openFile*` overload in favour of a non-blocking API that
+  does not exist below 2026.3, so 0.3.1's replacement for `openFile(file, focus)` became the
+  next warning. `OpenFileDescriptor` carries no deprecation in any supported IDE and keeps the
+  behaviour: same window, never a preview tab.
+
 ## 0.4.3
 
 No user-visible change: this release is the documentation pass.
