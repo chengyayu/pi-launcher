@@ -22,7 +22,7 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 - **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
 - **Rename a tab, rename the session** — The dashboard and the tooltip use the tab's display name, so `Pi 1` renamed to `api work` is `api work` everywhere
 - **Close the panel, keep the conversation** — the plugin reads back the identity Pi gives each session, so closing its tab ends the run, not the work: the dashboard lists it as `not running` and reopens it on Pi's own session file
-- **Model configuration** — Pick model and thinking level from `~/.pi/agent/models.json`
+- **Model configuration** — Pick a model from `~/.pi/agent/models.json` and a thinking level, or type any model id
 
 All sessions share the same settings; the command line is a snapshot taken when a session starts.
 
@@ -40,9 +40,10 @@ Pi reports its own execution state, and the plugin shows it rather than guessing
 
 A session Pi has not reported on reads **`no status from Pi`** — never `idle`. Not
 every Pi build can be reported on, and a plugin that cannot see a state should say
-so instead of inventing one. A session whose tab was closed reads **`not running`**:
-that is none of Pi's states, because nothing is running and whatever it last said
-belongs to the run that is over.
+so instead of inventing one; the status bar counts that session as `N unknown`
+rather than folding it into a state. A session whose tab was closed reads **`not
+running`**: that is none of Pi's states, because nothing is running and whatever it
+last said belongs to the run that is over.
 
 The status arrives through a small extension the plugin loads into Pi
 (`--extension`, see `docs/adr/0005`), because Pi's own status protocol is an OSC
@@ -113,15 +114,16 @@ Five constraints drive the design:
 1. **VFS change notifications arrive on a background thread.** Feeding them
    straight into editor APIs is what used to freeze GoLand: a burst of writes
    meant a burst of editor work, off the EDT, racing the platform's read/write
-   lock. All editor access now goes through `PiChangeDebouncer`, which coalesces
-   a burst, filters irrelevant changes, skips indexing, and dispatches to the EDT.
+   lock. `PiVfsFilter` drops changes that are not Pi's, `PiChangeDebouncer`
+   coalesces a burst off the EDT, and editor work happens only in the dispatch —
+   deferred rather than dropped while indexing runs.
 
 2. **Process liveness cannot be probed naively.** For pty4j local terminals,
    `TtyConnector.isConnected()` is delegated to a short-lived spawn helper rather
-   than the interactive shell, and `ShellTerminalWidget.hasRunningCommands()`
-   returns early with `false` whenever that is false. `pid()` is the real child
-   pid, so the shell's process tree is inspected instead — unwrapping the RD
-   connector proxy the block terminal installs first.
+   than the interactive shell, so the engine's own answer is unusable. `pid()` is
+   the real shell pid, so the shell's process tree is read through `ProcessHandle`
+   instead — after unwrapping the RD connector proxy the block terminal installs
+   first, and with `null` meaning "the engine could not tell" rather than "exited".
 
 3. **The terminal API differs per engine.** Tabs are opened with the
    engine-agnostic `createShellWidget` (not `createLocalShellWidget`, which casts
@@ -129,11 +131,12 @@ Five constraints drive the design:
    `setAccessible`, because the classic engine returns a package-private bridge
    class. See `docs/adr/0002`.
 
-4. **A fresh tab has no pty, and two sends are not ordered by anything.** The
-   launch command waits out a settle delay and retries while the pty is missing,
-   so a prompt reference sent in parallel could be typed first and run by the
-   shell as part of the command line (`zsh: no such file or directory: @path…`).
-   Input is queued behind the delivery of the launch command. See `docs/adr/0003`.
+4. **A fresh tab has no pty, and "the widget took the command" is not "the shell
+   ran it".** The launch command waits out a settle delay and retries while the
+   pty is missing, so a prompt reference sent in parallel could be typed first and
+   run by the shell as part of the command line (`zsh: no such file or directory:
+   @path…`). Input waits until the liveness probe sees Pi running, polled for at
+   most 2 s, and is released anyway when the engine cannot tell. See `docs/adr/0003`.
 
 5. **Pi cannot be observed from outside.** Its own status protocol is an OSC escape
    sequence the IDE terminal discards, it offers no attach, and it writes no status
@@ -162,50 +165,68 @@ Five constraints drive the design:
 
 ```
 src/main/kotlin/com/chengyayu/pilauncher/
-├── domain/                        # Pure logic, no IDE types, unit tested
-│   ├── PiLaunchOptions.kt         # Inputs that determine how Pi starts
-│   ├── PiCommandLine.kt           # Renders options into the CLI command
-│   ├── PiFileReference.kt         # @path#L10-25 references
-│   ├── PiStatus.kt                # Session Status: a state, a message, an activity
-│   ├── PiSessionId.kt              # Whether an id Pi reported may reach a command line
-│   ├── PiStatusReport.kt          # Decodes what the Pi-side extension writes
-│   ├── PiStatusReadout.kt         # Wording shared by the status bar and dashboard
-│   └── PiModel.kt                 # Model advertised by the Pi CLI
-├── infrastructure/                # Adapters to the IDE and the filesystem
-│   ├── PiTerminal.kt              # Terminal + Session Host interfaces (fakeable)
-│   ├── ToolWindowSessionHost.kt   # Reflective Terminal tool window access
-│   ├── PiStatusChannel.kt         # Per-session status source (fakeable)
-│   ├── PiStatusExtension.kt       # Hosts the Pi-side extension, reads its reports
-│   ├── PiModelRepository.kt       # Reads ~/.pi/agent/models.json
-│   └── PiNotifier.kt              # Notification interface + IDE impl
-├── util/
-│   └── PiChangeDebouncer.kt       # Coalesces write bursts, IDE-free
-├── services/
-│   ├── PiSessionService.kt        # Project-facing adapter
-│   ├── PiSessionRegistry.kt       # All running sessions + Active Session pointer
-│   ├── PiSession.kt               # One session's lifecycle
-│   ├── PiSessionStore.kt          # Parked sessions, per project
-│   ├── PersistentPiSessionStore.kt # ...and its state file
-│   ├── PiSessionListener.kt       # Observable running-session count (topic)
-│   ├── PiSessionStatusListener.kt # Observable session snapshot (topic)
-│   ├── PiCommandDispatcher.kt     # Sends the start command
-│   ├── PiFileWatcher.kt           # Optional auto-open (off by default)
-│   ├── PiStatusWidget.kt          # Status bar entry
-│   └── PiVfsUtils.kt              # VFS change filtering
-├── ui/                            # The Session Dashboard editor tab
-│   ├── PiDashboardPanel.kt        # Table of sessions + safe actions
-│   ├── PiDashboardTableModel.kt   # Readout -> row mapping
-│   └── PiDashboardEditorProvider.kt  # One dashboard tab per project
-├── actions/                       # Extract input, delegate to a service
-└── settings/                      # Persisted state and settings UI
+├── domain/                                # Pure logic, no IDE types, unit tested
+│   ├── PiLaunchOptions.kt                 # Inputs that determine how Pi starts
+│   ├── PiCommandLine.kt                   # Renders options into the CLI command
+│   ├── PiFileReference.kt                 # @path#L10-25 references
+│   ├── PiStatus.kt                        # Session Status: a state, a message, an activity
+│   ├── PiStatusReport.kt                  # Decodes what the Pi-side extension writes
+│   ├── PiSessionReport.kt                 # One read of that file: status and identity
+│   ├── PiSessionId.kt                     # Whether an id Pi reported may reach a command line
+│   ├── PiStatusReadout.kt                 # Wording shared by the status bar and dashboard
+│   └── PiModel.kt                         # Model advertised by the Pi CLI
+├── infrastructure/                        # Adapters to the IDE and the filesystem
+│   ├── PiTerminal.kt                      # Terminal + Session Host interfaces (fakeable)
+│   ├── ToolWindowSessionHost.kt           # Reflective Terminal tool window access
+│   ├── ReflectiveTerminal.kt              # One terminal widget, reached by reflection
+│   ├── Reflection.kt                      # Reflection helpers for that API
+│   ├── PiStatusChannel.kt                 # Per-session status source (fakeable)
+│   ├── PiStatusExtension.kt               # Hosts the Pi-side extension, reads its reports
+│   ├── PiStatusProbeCache.kt              # "Can this Pi host the extension?", asked once
+│   ├── PiModelRepository.kt               # Reads ~/.pi/agent/models.json
+│   ├── PiProjectKey.kt                    # Per-project name for the temporary status files
+│   ├── DroppedFiles.kt                    # Reads the paths a drop carries
+│   ├── PiVfsFilter.kt                     # VFS change filtering
+│   ├── PiEditorOpener.kt                  # Opens a file as an ordinary editor tab
+│   └── PiNotifier.kt                      # Notification interface + IDE impl
+├── util/                                  # Small helpers: coalescing bursts, scheduling work
+│   ├── PiChangeDebouncer.kt               # Coalesces write bursts, IDE-free
+│   └── PiScheduler.kt                     # Delayed work behind an interface (fakeable)
+├── services/                              # Lifecycle: one session, all sessions, their parked state
+│   ├── PiSessionService.kt                # Project-facing adapter
+│   ├── PiSessionRegistry.kt               # Running and parked sessions, Active Session
+│   ├── PiSession.kt                       # One session's lifecycle
+│   ├── PiSessionStore.kt                  # Parked sessions, per project
+│   ├── PersistentPiSessionStore.kt        # ...and its state file
+│   ├── PiSessionListener.kt               # Observable running-session count (topic)
+│   ├── PiSessionStatusListener.kt         # Observable session snapshot (topic)
+│   ├── PiCommandDispatcher.kt             # Sends the start command
+│   ├── PiFileWatcher.kt                   # Optional auto-open (off by default)
+│   ├── PiStatusWidget.kt                  # Status bar entry
+│   ├── PiStatusWidgetFactory.kt           # Registers that entry with the platform
+│   └── ApplicationPiStatusProbeCache.kt   # The probe result this IDE session shares
+├── ui/                                    # The Session Dashboard editor tab
+│   ├── PiDashboardPanel.kt                # Table of sessions + safe actions
+│   ├── PiDashboardTableModel.kt           # Readout -> row mapping
+│   └── PiDashboardEditorProvider.kt       # One dashboard tab per project
+├── actions/                               # Extract input, delegate to a service
+│   ├── LaunchPiAction.kt                  # π button: focus, or start; Alt-click starts a second
+│   ├── SendSelectionAction.kt             # Selection -> @path#L10-25
+│   ├── SendFileToPiAction.kt              # File or folder -> @path
+│   ├── PiPrompt.kt                        # Shared "insert this reference" path
+│   └── EventFiles.kt                      # Resolves what an action was invoked on
+└── settings/                              # Persisted state and settings UI
+    ├── PiSettings.kt                      # The state the IDE persists
+    ├── PiSettingsConfigurable.kt          # Settings → Tools → Pi Launcher
+    └── PiSettingsForm.kt                  # The widgets behind it
 
 src/main/resources/pi/
-└── pi-launcher-status.ts          # The reporter loaded into Pi with --extension
+└── pi-launcher-status.ts                  # The reporter loaded into Pi with --extension
 ```
 
-The `domain` and `util` packages have no IntelliJ dependencies, so argument
-handling, reference formatting, status decoding and debouncing are covered by plain
-unit tests (`./gradlew test`).
+`domain` — and `PiChangeDebouncer` — carry no IntelliJ types, so argument handling,
+reference formatting, status decoding and debouncing are covered by plain unit tests
+(`./gradlew test`).
 
 ## License
 

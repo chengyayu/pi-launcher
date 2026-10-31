@@ -22,7 +22,7 @@
 - **Session Dashboard** — 一个编辑器 tab 列出所有会话及其状态，以及 pi 自己说的话：卡在哪个对话框、错误首行、正在跑的工具调用
 - **重命名 tab 就等于重命名会话** — 面板与 tooltip 都用 tab 的显示名，`Pi 1` 改成 `api work` 后到处都叫 `api work`
 - **关掉面板，不丢对话** — 插件会读回 pi 为每个会话分配的身份，关 tab 结束的是一次运行，不是这次工作：面板里它是 `not running`，可以沿着 pi 自己的会话文件重新打开
-- **模型配置** — 从 `~/.pi/agent/models.json` 加载模型列表
+- **模型配置** — 从 `~/.pi/agent/models.json` 里选模型，并选 thinking level，或直接填写任意模型 id
 
 所有会话共用同一套设置，命令在会话启动时取快照。
 
@@ -38,7 +38,7 @@
 | `error` | 一次 run 因错误结束且 pi 未重试 |
 | `idle` | pi 刚启动，或你取消了这次 run |
 
-**没有报告的会话显示 `no status from Pi`，绝不会显示 `idle`。** 不是每个 pi 版本都能被报告，而插件看不到状态时应该说看不到，而不是编一个。**tab 已经关掉的会话显示 `not running`**：这不属于 pi 的任何状态，因为没有东西在跑，而它最后说的话属于已经结束的那次运行。
+**没有报告的会话显示 `no status from Pi`，绝不会显示 `idle`。** 不是每个 pi 版本都能被报告，而插件看不到状态时应该说看不到，而不是编一个——状态栏把这种会话计为 `N unknown`，不会把它算进某个状态。**tab 已经关掉的会话显示 `not running`**：这不属于 pi 的任何状态，因为没有东西在跑，而它最后说的话属于已经结束的那次运行。
 
 状态的来源是插件加载进 pi 进程的一个小扩展（`--extension`，见 `docs/adr/0005`）——因为 pi 自带的状态协议是 IDE 终端会丢弃的 OSC 转义序列（见 `docs/adr/0004`）。插件会先问 pi 是否接受该 flag，老版本 pi 照常工作，只是没有状态。
 
@@ -93,13 +93,13 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
 
 设计由五条硬约束驱动：
 
-1. **VFS 变更通知在后台线程到达。** 直接灌给编辑器 API 就是当年 GoLand 卡死的原因：一串写入 = 一串编辑器操作，不在 EDT 上，还和平台的读写锁赛跑。现在所有编辑器访问都经过 `PiChangeDebouncer`：合并突发、过滤无关变更、索引期间跳过、统一派发到 EDT。
+1. **VFS 变更通知在后台线程到达。** 直接灌给编辑器 API 就是当年 GoLand 卡死的原因：一串写入 = 一串编辑器操作，不在 EDT 上，还和平台的读写锁赛跑。现在 `PiVfsFilter` 先丢掉不属于 Pi 的变更，`PiChangeDebouncer` 在 EDT 之外合并突发，编辑器操作只在派发时发生——索引期间是延后重试，不是丢弃。
 
-2. **进程存活无法用常见 API 探测。** pty4j 本地终端的 `TtyConnector.isConnected()` 委托给短命的 spawn 辅助进程而非交互式 shell，而 `ShellTerminalWidget.hasRunningCommands()` 在该值为 false 时直接早退返回 false。`pid()` 才是真实子进程 pid，因此改为检查 shell 的进程树——并先拆掉 block 终端装的 RD connector 代理。
+2. **进程存活无法用常见 API 探测。** pty4j 本地终端的 `TtyConnector.isConnected()` 委托给短命的 spawn 辅助进程而非交互式 shell，引擎自己的答案不可用。`pid()` 才是真实子进程 pid，因此改为通过 `ProcessHandle` 读 shell 的进程树——先拆掉 block 终端装的 RD connector 代理，并用 `null` 表示“引擎说不清”，而不是“已退出”。
 
 3. **两种终端引擎的 API 不一样。** 开 tab 用引擎无关的 `createShellWidget`（而不是 `createLocalShellWidget`：它会强转成 JediTerm widget，在 block 引擎上直接抛异常），并通过反射 + `setAccessible` 调用——因为经典引擎返回的是包私有桥接类。见 `docs/adr/0002`。
 
-4. **新开的 tab 没有 pty，两次发送之间没有任何顺序保证。** launch 命令要先等 settle 延迟、缺 pty 时还要重试，并行的 prompt 引用就可能先被敲进去，被 shell 当成命令行的一部分执行（`zsh: no such file or directory: @path…`）。现在输入会排在 launch 命令投递完成之后。见 `docs/adr/0003`。
+4. **新开的 tab 没有 pty，而“控件收下了命令”不等于“shell 执行了它”。** launch 命令要先等 settle 延迟、缺 pty 时还要重试，并行的 prompt 引用就可能先被敲进去，被 shell 当成命令行的一部分执行（`zsh: no such file or directory: @path…`）。现在输入会等存活探测看到 Pi 正在运行再放行，最多轮询 2 秒；引擎答不上来时也会放行。见 `docs/adr/0003`。
 
 5. **pi 无法从外部观察。** 它自带的状态协议是 IDE 终端会丢弃的 OSC 转义序列，不提供 attach，也不写状态文件。因此插件通过 `--extension` 把一个很小的扩展加载进 pi 进程，读它写出的文件（见 `docs/adr/0005`）——并且会先问 pi 是否接受这个 flag：老版本 pi 拒绝它会让会话根本起不来。
 
@@ -118,6 +118,72 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
 # 打包
 ./gradlew buildPlugin
 ```
+
+## 项目结构
+
+```
+src/main/kotlin/com/chengyayu/pilauncher/
+├── domain/                                # 纯逻辑，无 IDE 类型，可单测
+│   ├── PiLaunchOptions.kt                 # 决定 Pi 如何启动的输入
+│   ├── PiCommandLine.kt                   # 把输入渲染成 CLI 命令
+│   ├── PiFileReference.kt                 # @path#L10-25 引用
+│   ├── PiStatus.kt                        # Session Status：状态 + 说明 + 当前活动
+│   ├── PiStatusReport.kt                  # 解码 Pi 侧扩展写出的内容
+│   ├── PiSessionReport.kt                 # 读一次该文件：状态与身份
+│   ├── PiSessionId.kt                     # Pi 报告的 id 能否进入命令行
+│   ├── PiStatusReadout.kt                 # 状态栏与面板共用的文案
+│   └── PiModel.kt                         # Pi CLI 提供的模型
+├── infrastructure/                        # 对 IDE 与文件系统的适配
+│   ├── PiTerminal.kt                      # Terminal / Session Host 接口（可伪造）
+│   ├── ToolWindowSessionHost.kt           # 反射访问 Terminal 工具窗口
+│   ├── ReflectiveTerminal.kt              # 一个终端控件，经反射到达
+│   ├── Reflection.kt                      # 终端 API 的反射辅助
+│   ├── PiStatusChannel.kt                 # 单会话状态源（可伪造）
+│   ├── PiStatusExtension.kt               # 托管 Pi 侧扩展并读回报告
+│   ├── PiStatusProbeCache.kt              # “这个 Pi 能加载扩展吗”，只问一次
+│   ├── PiModelRepository.kt               # 读 ~/.pi/agent/models.json
+│   ├── PiProjectKey.kt                    # 状态临时目录的按项目命名
+│   ├── DroppedFiles.kt                    # 读出拖拽携带的路径
+│   ├── PiVfsFilter.kt                     # VFS 变更过滤
+│   ├── PiEditorOpener.kt                  # 把文件开成普通编辑器标签
+│   └── PiNotifier.kt                      # 通知接口 + IDE 实现
+├── util/                                  # 小工具：合并突发、调度延时任务
+│   ├── PiChangeDebouncer.kt               # 合并写入突发，无 IDE 依赖
+│   └── PiScheduler.kt                     # 延时任务藏在一个接口后面（可伪造）
+├── services/                              # 生命周期：单会话、全部会话、已停放状态
+│   ├── PiSessionService.kt                # 面向 project 的适配层
+│   ├── PiSessionRegistry.kt               # 运行与停放的会话 + Active Session
+│   ├── PiSession.kt                       # 一个会话的生命周期
+│   ├── PiSessionStore.kt                  # 按项目停放会话
+│   ├── PersistentPiSessionStore.kt        # ……以及它的状态文件
+│   ├── PiSessionListener.kt               # 可观察的运行会话数（topic）
+│   ├── PiSessionStatusListener.kt         # 可观察的会话快照（topic）
+│   ├── PiCommandDispatcher.kt             # 投递启动命令
+│   ├── PiFileWatcher.kt                   # 可选的自动打开（默认关闭）
+│   ├── PiStatusWidget.kt                  # 状态栏条目
+│   ├── PiStatusWidgetFactory.kt           # 向平台注册该条目
+│   └── ApplicationPiStatusProbeCache.kt   # 整个 IDE 共享的探测结果
+├── ui/                                    # Session Dashboard 编辑器标签
+│   ├── PiDashboardPanel.kt                # 会话表格 + 安全操作
+│   ├── PiDashboardTableModel.kt           # Readout -> 行的映射
+│   └── PiDashboardEditorProvider.kt       # 每个 project 一个 dashboard 标签
+├── actions/                               # 取出输入，交给 service
+│   ├── LaunchPiAction.kt                  # π 按钮：聚焦或启动；Alt+点再开一个
+│   ├── SendSelectionAction.kt             # 选区 -> @path#L10-25
+│   ├── SendFileToPiAction.kt              # 文件或文件夹 -> @path
+│   ├── PiPrompt.kt                        # 各“插入引用”动作共用的路径
+│   └── EventFiles.kt                      # 解析动作作用在什么上
+└── settings/                              # 持久化状态与设置 UI
+    ├── PiSettings.kt                      # IDE 持久化的状态
+    ├── PiSettingsConfigurable.kt          # Settings → Tools → Pi Launcher
+    └── PiSettingsForm.kt                  # 背后的控件
+
+src/main/resources/pi/
+└── pi-launcher-status.ts                  # 用 --extension 加载进 Pi 的报告器
+```
+
+`domain`——以及 `PiChangeDebouncer`——不带 IntelliJ 类型，所以参数处理、引用格式化、
+状态解码与防抖都有不依赖 IDE 的单元测试覆盖（`./gradlew test`）。
 
 ## 许可证
 
