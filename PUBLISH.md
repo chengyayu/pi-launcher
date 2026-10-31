@@ -172,3 +172,25 @@ gh workflow run publish.yml --ref main
 `v0.0.0-trigger-check` 建一个非 draft 的 release，run 被自动拉起，在 `Check tag against plugin
 version` 按预期报红（tag 与 0.4.3 不符），Test/Build/Publish 都没跑。release 与 tag 随即已删除，
 所以这条红 run 留在 Actions 历史里是验证痕迹，不是故障。
+
+## CI 工具链
+
+| 项 | 值 |
+|---|---|
+| runner | `ubuntu-24.04`（固定，不用 `ubuntu-latest`） |
+| `actions/checkout` | `v7` |
+| `actions/setup-java` | `v6`（zulu 21） |
+| `gradle/actions/setup-gradle` | `v5` |
+| `actions/upload-artifact` | `v7` |
+
+两点容易被"顺手升级"掉：
+
+- `ubuntu-latest` 于 2026-10-19 迁到 Ubuntu 26，会把 JDK 和 Gradle 环境在发版当口换掉，所以写死
+  Ubuntu 24.04。要换镜像就改这一行并跑一次 `workflow_dispatch` 验证。
+- `setup-gradle` 停在 `v5`：`v6` 把缓存拆成 `gradle-actions-caching`，那是 Gradle 的专有许可组件
+  （启用缓存即适用其 Terms of Use），这个 workflow 不需要它。
+
+升级后验证过一次（run 41180764150，`workflow_dispatch`）：Checkout → Set up Java → Set up Gradle
+→ Test → Build plugin → Upload artifact 全绿，只有 `Publish plugin` 报
+`The com.chengyayu.pi-launcher plugin already contains version 0.4.3`。这是预期结果：
+`workflow_dispatch` 不改版本号重跑必然重复上传（见上文 0.1.0），同时也再次证明 token 有效。
