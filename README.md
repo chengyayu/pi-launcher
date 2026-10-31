@@ -9,7 +9,7 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 | | |
 |---|---|
 | ![Pi running in a Terminal tab](screenshots/01-pi-terminal.png) | ![Send to Pi context menu](screenshots/02-send-to-pi.png) |
-| ![Session Dashboard: every session, the state Pi reported, and the tool call it is running](screenshots/04-session-dashboard.png) | ![Pi Launcher settings](screenshots/03-settings.png) |
+| ![Session Dashboard: the running sessions, the state Pi reported, and the tool call each is running](screenshots/04-session-dashboard.png) | ![Pi Launcher settings](screenshots/03-settings.png) |
 
 ## Features
 
