@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0
+## 0.3.2
 
 ### Added
 
@@ -26,6 +26,19 @@
 
 - **Closing a renamed tab left a dead session in the registry.** Sessions are now
   removed by identity rather than by their current label.
+- **Typing stalled in a session that had an image in it.** The IDE terminal cannot draw
+  inline images, but Pi's protocol detection guessed it could and wrote image data as a
+  sequence the terminal cannot parse - logging a warning per chunk and swallowing the
+  keystrokes after it. Sessions are started with `PI_IMAGE_PROTOCOL=none`.
+- **The session footer no longer says `Pi 1`.** The plugin used to name every session
+  with `--name`, which Pi shows in its footer; a session started here looked different
+  from the same session started in a terminal. The IDE label is the tab.
+
+### Changed
+
+- **Sessions stay in the Terminal tool window.** An editor-tab host was built and
+  removed again: it bought width and cost four terminal-engine problems that had nothing
+  to do with where a session is drawn (`docs/adr/0007`).
 
 ## 0.3.1
 

@@ -46,6 +46,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>0.3.2</h3>
+    <ul>
+        <li><b>A session survives its tab</b> — every session starts under an identity, so closing its tab ends the run and the Session Dashboard reopens the conversation with <code>pi --session &lt;id&gt;</code></li>
+        <li>The dashboard can reopen and rename a closed session; the status bar counts only running sessions</li>
+        <li>Fixed: typing stalled in a session that had an image in it — sessions now tell Pi this terminal cannot draw inline images</li>
+        <li>Fixed: the footer no longer shows the plugin's own label for the session</li>
+    </ul>
     <h3>0.3.1</h3>
     <ul>
         <li>Fixed: the dashboard and auto-open used an editor API that IDEA 2026.3 deprecates — the Marketplace verification no longer reports warnings</li>
