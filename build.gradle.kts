@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.16.0"
 }
 group = "com.chengyayu.pilauncher"
-version = "0.4.1"
+version = "0.4.2"
 
 repositories {
     mavenCentral()

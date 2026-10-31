@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.4.1
 
 No user-visible change: this release is the refactoring pass.
