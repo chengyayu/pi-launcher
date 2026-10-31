@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
+
+No user-visible change: this release is the refactoring pass.
+
+### Changed
+
+- **The session host's parameters match its interface.** `open`/`focus` said
+  `tabName` where `PiSessionHost` says `name`; a caller using named arguments would
+  have broken, and the compiler warned about it.
+- **Alt-click is read from the extended modifier set** (`modifiersEx`,
+  `ALT_DOWN_MASK`) instead of the deprecated `ALT_MASK`.
+- **A drop that races the session binding is logged and discarded**, not typed into
+  the pty - the old fallback bypassed the launch-input queue (`docs/adr/0003`).
+- **One test terminal instead of three.** `PiSessionTest` and
+  `PiSessionRegistryTest` shared their `FakeTerminal` copies.
+
+### Removed
+
+- **The unused `shellPath` setting.** Nothing read it and the settings form never
+  showed it.
 
 ## 0.4.0
 

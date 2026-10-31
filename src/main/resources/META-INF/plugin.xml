@@ -46,6 +46,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>0.4.1</h3>
+    <ul>
+        <li>Internal refactoring only — no user-visible change from 0.4.0: the drop-to-reference and single π button behave the same</li>
+    </ul>
     <h3>0.4.0</h3>
     <ul>
         <li><b>Drop a file on a Pi tab</b> — it becomes an <code>@path</code> reference in the prompt, instead of opening a new <code>Local</code> terminal tab</li>
