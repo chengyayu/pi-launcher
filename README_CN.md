@@ -15,7 +15,7 @@
 
 - **一键启动** — 点击工具栏 π 按钮启动 Pi
 - **终端集成** — Pi 作为 IDE Terminal 窗口的一个 tab（和 Local 并列），每个会话一个 tab，可同时运行多个 Pi Session
-- **新建会话** — Terminal tab 右键 → "New Pi Session" 再开一个会话
+- **再开一个会话** — **Alt+点 π**：普通点只是聚焦当前会话
 - **发送选区** — 选中代码 → 右键 → "Send to Pi"，自动插入 `@path/file.go#L10-25` 到当前会话（Active Session）输入框
 - **真实状态** — 状态栏显示 pi 在做什么（`working` / `blocked` / `done` / `error` / `idle`），而不是开了几个 tab
 - **Session Dashboard** — 一个编辑器 tab 列出所有会话及其状态，以及 pi 自己说的话：卡在哪个对话框、错误首行、正在跑的工具调用
@@ -60,7 +60,7 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
 |--------|------|
 | `Ctrl+Shift+Backquote` | 聚焦当前会话，没有会话时启动一个 |
 | `Ctrl+Shift+L` | 发送选区到当前会话 |
-| （无默认快捷键） | New Pi Session —— 另开一个会话，可在 Terminal tab 右键菜单或 Search Everywhere 中触发 |
+| `Alt` + 点 π | 另开一个会话（普通点击是聚焦当前会话） |
 
 ## 快速开始
 
@@ -71,7 +71,7 @@ Pi 一次 session 经常改写几十个文件。插件**不弹 diff**、**不弹
    ```
 3. 点击工具栏 **π** 按钮
 4. Terminal 窗口中打开 "Pi 1" tab，自动启动 `pi`
-5. 想再开一个会话：右键 Terminal tab → **New Pi Session**
+5. 想再开一个会话：**Alt+点 π**（或用 Dashboard 里的 **New Pi Session**）
 
 ## 配置
 

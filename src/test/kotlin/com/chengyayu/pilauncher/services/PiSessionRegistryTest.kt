@@ -480,6 +480,19 @@ class PiSessionRegistryTest {
         }
     }
 
+    @Test
+    fun `files dropped on a tab are typed into its prompt`() {
+        newRegistry().use { registry ->
+            registry.launch()
+
+            provider.created.single().terminal.drop(listOf("/work/lib/a.go", "/tmp/shot.png"))
+
+            val typed = provider.created.single().terminal.sent.last()
+            assertEquals("@lib/a.go @/tmp/shot.png ", typed.text)
+            assertFalse(typed.submitted, "a drop must not submit the prompt")
+        }
+    }
+
     // ---- fakes -------------------------------------------------------------
 
     private object NoopDisposable : Disposable {
@@ -564,11 +577,22 @@ class PiSessionRegistryTest {
         val sent = mutableListOf<Sent>()
         var commandRunning: Boolean? = true
 
+        private var dropListener: ((List<String>) -> Unit)? = null
+
         override fun isForegroundCommandRunning(): Boolean? = commandRunning
+
+        override fun onFilesDropped(listener: (List<String>) -> Unit) {
+            dropListener = listener
+        }
 
         override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
             sent += Sent(text, submit)
             onDelivered()
+        }
+
+        /** Simulates the user dropping files onto the terminal. */
+        fun drop(paths: List<String>) {
+            dropListener?.invoke(paths)
         }
     }
 

@@ -1,6 +1,9 @@
 package com.chengyayu.pilauncher.infrastructure
 
+import com.intellij.ide.dnd.DnDSupport
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.ui.ComponentContainer
+import javax.swing.JComponent
 import javax.swing.Timer
 
 /**
@@ -13,6 +16,67 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
 
     @Volatile
     private var probeLogged = false
+
+    /** Set by the session once it exists; a drop before that goes straight to the pty. */
+    @Volatile
+    private var dropListener: ((List<String>) -> Unit)? = null
+
+    init {
+        installDropTarget()
+    }
+
+    override fun onFilesDropped(listener: (List<String>) -> Unit) {
+        dropListener = listener
+    }
+
+    /**
+     * Takes over file drops on the terminal's own component.
+     *
+     * The platform installs its handler on the whole tool window, and that handler
+     * decides between "insert the path" and "open a terminal here" by the drop
+     * point - a drop that lands on the tab strip wins the latter and opens a new
+     * tab. A target on the content wins over the tool window's one, so a Pi tab
+     * always gets the drop (`docs/adr/0008`).
+     */
+    private fun installDropTarget() {
+        val component = (widget as? ComponentContainer)?.component ?: widget as? JComponent ?: run {
+            logger.warn("Pi terminal exposes no component to accept file drops")
+            return
+        }
+
+        DnDSupport.createBuilder(component)
+            .setDropHandler { event ->
+                val attached = event.attachedObject
+                val paths = try {
+                    DroppedFiles.pathsOf(attached)
+                } catch (e: Exception) {
+                    logger.warn("Failed to read the files in a drop: ${e.message}")
+                    emptyList()
+                }
+                if (paths.isNotEmpty()) {
+                    deliverDropped(paths)
+                    return@setDropHandler
+                }
+
+                // Text kept the platform's "insert it" meaning, so take it over too.
+                val text = DroppedFiles.textOf(attached)?.takeIf { it.isNotBlank() } ?: return@setDropHandler
+                send(text, submit = false) { }
+            }
+            .enableAsNativeTarget()
+            .disableAsSource()
+            .install()
+    }
+
+    private fun deliverDropped(paths: List<String>) {
+        val listener = dropListener
+        if (listener != null) {
+            listener(paths)
+            return
+        }
+
+        // No session yet: the paths are still what the user meant, so type them.
+        send(paths.joinToString(" ") + " ", submit = false) { }
+    }
 
     /**
      * The engine's own liveness APIs are unusable (`isConnected()` answers

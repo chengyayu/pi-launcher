@@ -112,6 +112,28 @@ class PiSessionTest {
     }
 
     @Test
+    fun `dropped files become prompt references without submitting`() {
+        newSession().use { session ->
+            session.start()
+            session.insertFiles("/proj", listOf("/proj/lib/a.go", "/tmp/shot.png"))
+        }
+
+        val typed = terminals.single().sent.last()
+        assertEquals("@lib/a.go @/tmp/shot.png ", typed.text)
+        assertFalse(typed.submitted, "a drop must not press enter")
+    }
+
+    @Test
+    fun `a drop carrying no files types nothing`() {
+        newSession().use { session ->
+            session.start()
+            session.insertFiles("/proj", emptyList())
+        }
+
+        assertEquals(1, terminals.single().sent.size, "only the start command was sent")
+    }
+
+    @Test
     fun `submitText types and submits`() {
         newSession().use { session ->
             session.start()
@@ -284,6 +306,8 @@ class PiSessionTest {
 
         override fun isForegroundCommandRunning(): Boolean? = commandRunning
 
+        override fun onFilesDropped(listener: (List<String>) -> Unit) = Unit
+
         override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
             sent += Sent(text, submit)
             onDelivered()
@@ -309,6 +333,8 @@ class PiSessionTest {
         private val refused = mutableListOf<Pair<Sent, () -> Unit>>()
 
         override fun isForegroundCommandRunning(): Boolean? = commandRunning
+
+        override fun onFilesDropped(listener: (List<String>) -> Unit) = Unit
 
         override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
             val attempt = Sent(text, submit)

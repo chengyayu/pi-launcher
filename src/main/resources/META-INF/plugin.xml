@@ -52,6 +52,7 @@
         <li>The dashboard can reopen and rename a closed session; the status bar counts only running sessions</li>
         <li>Fixed: typing stalled in a session that had an image in it — sessions now tell Pi this terminal cannot draw inline images</li>
         <li>Fixed: the footer no longer shows the plugin's own label for the session</li>
+        <li>One π button: <b>Alt+click</b> it to start an additional session — the extra "New Pi Session" button in the terminal toolbar is gone</li>
     </ul>
     <h3>0.3.1</h3>
     <ul>
@@ -122,19 +123,10 @@
         <action id="Pi.Launch"
                 class="com.chengyayu.pilauncher.actions.LaunchPiAction"
                 text="Launch Pi"
-                description="Focus the active Pi session, or start a new one when none is running"
+                description="Focus the active Pi session, or start one when none is running. Alt-click starts an additional session"
                 icon="/icons/pi.svg">
             <add-to-group group-id="MainToolbarRight" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift BACK_QUOTE"/>
-        </action>
-
-        <!-- An additional session, reachable from the Terminal tab context menu -->
-        <action id="Pi.NewSession"
-                class="com.chengyayu.pilauncher.actions.NewPiSessionAction"
-                text="New Pi Session"
-                description="Start an additional Pi session in a new Terminal tab"
-                icon="/icons/pi.svg">
-            <add-to-group group-id="TerminalToolwindowActionGroup" anchor="last"/>
         </action>
 
         <!-- Send selection from editor -->

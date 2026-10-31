@@ -2,6 +2,7 @@ package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
+import com.chengyayu.pilauncher.domain.PiFileReference
 import com.chengyayu.pilauncher.domain.PiSessionId
 import com.chengyayu.pilauncher.domain.PiStatus
 import com.chengyayu.pilauncher.infrastructure.PiStatusSource
@@ -85,6 +86,20 @@ internal class PiSession(
 
     /** Type [text] into the prompt without submitting it. */
     fun insertText(text: String) = send(text, submit = false)
+
+    /**
+     * Type the files the user dropped onto this session's terminal as prompt
+     * references, leaving them unsent.
+     *
+     * The paths are the drop's, not the project's: the same `@` rendering as Send to
+     * Pi, so a dropped screenshot outside the project keeps its absolute path
+     * (`docs/adr/0008`).
+     */
+    fun insertFiles(basePath: String?, paths: List<String>) {
+        if (paths.isEmpty()) return
+
+        insertText(paths.joinToString(" ") { PiFileReference.ofFile(basePath, it).render() } + " ")
+    }
 
     private fun send(text: String, submit: Boolean) = synchronized(this) {
         val queued = queuedInput

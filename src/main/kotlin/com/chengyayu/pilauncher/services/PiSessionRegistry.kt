@@ -175,6 +175,10 @@ internal class PiSessionRegistry(
             clock = clock
         )
 
+        // A drop is prompt input, so it goes through the session and queues behind the
+        // start command like anything else typed before Pi is up (`docs/adr/0008`).
+        terminal.onFilesDropped { paths -> session.insertFiles(workingDirectory(), paths) }
+
         sessions[keyOf(session)] = session
         active = session
         publishState()

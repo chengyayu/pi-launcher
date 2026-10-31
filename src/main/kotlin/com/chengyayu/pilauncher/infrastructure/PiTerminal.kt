@@ -27,6 +27,17 @@ interface PiTerminal {
      * previous state instead of guessing an exit.
      */
     fun isForegroundCommandRunning(): Boolean?
+
+    /**
+     * Called with the absolute paths of the files the user drops onto the
+     * terminal's surface.
+     *
+     * Without this, the platform's own drop handling decides what a drop means and
+     * a drop that misses the terminal view opens a new tab in the file's directory
+     * (`docs/adr/0008`). A Pi tab hands the paths to its session instead, which
+     * inserts them as prompt references.
+     */
+    fun onFilesDropped(listener: (List<String>) -> Unit)
 }
 
 /**

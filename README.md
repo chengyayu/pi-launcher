@@ -15,8 +15,9 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 
 - **One-click launch** — Click the π button in the toolbar to start Pi
 - **Terminal integration** — each Pi session runs as its own tab in the IDE's Terminal window (alongside Local), so several sessions can run side by side
-- **New Pi Session** — right-click a Terminal tab to start an additional session
+- **Another session** — **Alt+click** the π button: plain click focuses the session you have
 - **Send to Pi** — Select code → Right-click → "Send to Pi" inserts `@path/file.go#L10-25` into the active session's input
+- **Drop a file on Pi** — Dropping a screenshot or any file on a Pi tab inserts `@path` into its prompt (the same reference, no submit); it never starts a new terminal tab
 - **Live session status** — The status bar shows what Pi is doing (`working`, `blocked`, `done`, `error`, `idle`), not how many tabs happen to be open
 - **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
 - **Rename a tab, rename the session** — The dashboard and the tooltip use the tab's display name, so `Pi 1` renamed to `api work` is `api work` everywhere
@@ -77,7 +78,7 @@ If you do want modified files opened as ordinary editor tabs, opt in via
 |----------|--------|
 | `Ctrl+Shift+Backquote` | Focus the active Pi session, or launch one when none is running |
 | `Ctrl+Shift+L` | Send selection to the active Pi session |
-| — | New Pi Session (no default shortcut; use the Terminal tab context menu or Search Everywhere) |
+| `Alt` + click on π | Start an additional session instead of focusing the current one |
 
 ## Quick Start
 
@@ -88,7 +89,7 @@ If you do want modified files opened as ordinary editor tabs, opt in via
    ```
 3. Click the **π** button in the toolbar
 4. A "Pi 1" tab opens in the Terminal window and `pi` starts automatically
-5. For another session: right-click the Terminal tab → **New Pi Session**
+5. For another session: **Alt+click** the π button (or use **New Pi Session** in the dashboard)
 
 ## Configuration
 

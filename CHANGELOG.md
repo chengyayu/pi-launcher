@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Dropping a file on a Pi tab opened a new `Local` terminal instead of inserting the
+  path.** The IDE's drop handler decides by drop point, and a drop that lands on the
+  tab strip starts a shell in the file's directory. A Pi tab now installs its own drop
+  target on the terminal, so a dropped screenshot or file arrives as an `@path`
+  reference in Pi's prompt - not submitted, queued behind the launch command like any
+  other input (`docs/adr/0008`).
+
 ## 0.3.2
 
 ### Added
@@ -40,6 +51,9 @@
 
 ### Changed
 
+- **One π button, not two.** The separate "New Pi Session" action in the terminal's
+  toolbar is gone; **Alt+click** the π button to start an additional session, and a plain
+  click keeps focusing the one you have. The dashboard's own button stays.
 - **Sessions stay in the Terminal tool window.** An editor-tab host was built and
   removed again: it bought width and cost four terminal-engine problems that had nothing
   to do with where a session is drawn (`docs/adr/0007`).
