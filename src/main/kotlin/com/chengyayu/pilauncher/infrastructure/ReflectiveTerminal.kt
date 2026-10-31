@@ -17,7 +17,7 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
     @Volatile
     private var probeLogged = false
 
-    /** Set by the session once it exists; a drop before that goes straight to the pty. */
+    /** Set by the session right after the Host opens; a drop that races it is logged, not typed. */
     @Volatile
     private var dropListener: ((List<String>) -> Unit)? = null
 
@@ -67,15 +67,20 @@ internal class ReflectiveTerminal(private val widget: Any) : PiTerminal {
             .install()
     }
 
+    /**
+     * A drop is prompt input, so it belongs to the session and queues behind the launch
+     * command there (`docs/adr/0003`). The listener is bound in the same EDT turn that
+     * opens the tab, so a drop cannot normally arrive first; if one does, the paths are
+     * dropped and logged rather than typed into a shell Pi is not running in yet.
+     */
     private fun deliverDropped(paths: List<String>) {
         val listener = dropListener
-        if (listener != null) {
-            listener(paths)
+        if (listener == null) {
+            logger.warn("A file drop arrived before the session was bound to its terminal: $paths")
             return
         }
 
-        // No session yet: the paths are still what the user meant, so type them.
-        send(paths.joinToString(" ") + " ", submit = false) { }
+        listener(paths)
     }
 
     /**
