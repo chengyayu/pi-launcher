@@ -2,9 +2,12 @@ name: Publish Plugin
 
 # Publish from a GitHub release, or by hand from the Actions tab.
 # The version that gets uploaded is the one in build.gradle.kts.
+# `published`, not `created`: a release that goes public in one step - `gh release
+# create` without --draft, the API, the UI - only emits `published`. `created`
+# fires just for drafts, so listening to it silently skips every real release.
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
 
 permissions:

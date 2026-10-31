@@ -6,8 +6,8 @@
 |---|---|
 | Plugin ID | `com.chengyayu.pi-launcher` |
 | Marketplace ID | [34851](https://plugins.jetbrains.com/plugin/34851-pi-launcher) |
-| 已发布版本 | `0.1.0`、`0.2.0`、`0.2.1`、`0.3.0`、`0.3.1` |
-| 审核状态 | 已过审：`0.2.0` 与 `0.1.0` 均为 `approve: true` / `listed: true` |
+| 已发布版本 | `0.1.0`、`0.2.0`、`0.2.1`、`0.3.0`、`0.3.1`、`0.4.2`、`0.4.3` |
+| 审核状态 | 0.1.0 – 0.3.1 为 `approve: true` / `listed: true`；0.4.2 与 0.4.3 已上传，待审 |
 | Pricing | Free，MIT |
 | Vendor | chengyayu（Non-trader） |
 
@@ -38,6 +38,10 @@
 
 `.github/workflows/publish.yml` 会依次执行 test → buildPlugin → publishPlugin。
 tag 与 `build.gradle.kts` 里的 version 不一致会直接失败，避免版本错乱。
+
+触发条件是 `release: types: [published]`。**不要改回 `created`**：一步到位的发布（`gh release create`
+不带 `--draft`、API、网页直接发布）只发 `published`，`created` 只对应草稿，监听它等于每次真发布都不触发。
+release 事件用的是 **tag 所在 commit** 里的 workflow 文件，所以改这里要先合进 main 再打下一个 tag。
 
 ### 方式 B：本地发布
 
@@ -147,3 +151,19 @@ Check tag against plugin version → Test → Build plugin → Upload artifact �
 
 上传后公开 API 仍只列出 `0.1.0`：插件级 `approve` 仍为 `false`，新版本要等人审通过才在
 版本页可见。`publishPlugin` 成功 = 文件已进 JetBrains，版本页滞后属于审核流程，不是发布失败。
+
+### 0.4.2 / 0.4.3
+
+这两个版本的 Release 创建后**没有触发** `publish.yml`，是手动补的：
+
+```bash
+gh workflow run publish.yml --ref main
+```
+
+两次都 success（41177386395 传 0.4.2，41179498486 传 0.4.3），`publishPlugin` 为
+`BUILD SUCCESSFUL`。原因是当时 workflow 监听 `created`，而 `gh release create` 直接发布
+只发 `published` 事件（0.2.0/0.3.x 是在网页上先存草稿再发布，草稿创建时才发 `created`，
+所以那时候能自动触发）。workflow 已改为 `published`。
+
+`gh workflow run` 走的是 `main` 的最新提交，没有 tag，所以 `Check tag against plugin version`
+那步是 skipped：手动补发时**自己确认** `build.gradle.kts` 的 version 就是想传的版本。
