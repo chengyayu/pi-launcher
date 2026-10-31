@@ -16,8 +16,8 @@ could not survive its UI, and could not be reopened.
 So the two are split. **A Pi Session owns its identity** — pi's own session file plus
 the process currently driving it — and **a Session Host is only the surface that shows
 it**. There is one Host per Session and the Host may change; the user is never asked
-which Host they want, and "surface" is not a setting. Today the only Host is the
-Terminal tool window tab; an editor tab is being evaluated as the second one.
+which Host they want, and "surface" is not a setting. The only Host is the Terminal
+tool window tab; an editor tab was tried and lost (`docs/adr/0007`).
 
 ## Considered options
 

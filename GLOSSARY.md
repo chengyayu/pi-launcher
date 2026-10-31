@@ -9,11 +9,11 @@ JetBrains 插件，用于在 IDE 的 Terminal 工具窗口中启动和驱动 [Pi
 _Avoid_: Pi 实例、pi 进程（口语场景）、Pi tab（指逻辑实例时）
 
 **Session Host**:
-承载一个 Pi Session 的界面容器，一个 Session 至多有一个 Host。换 Host 不改变 Session。
+承载一个 Pi Session 的界面容器，一个 Session 至多有一个 Host。当前唯一的实现是 Terminal Tab；换 Host 不改变 Session。
 _Avoid_: Pi tab（指逻辑实例时）、窗口
 
 **Terminal Tab**:
-Terminal 工具窗口中的一个分页，是 Session Host 的一种。关闭它结束的是这次运行，不是这次对话。
+Terminal 工具窗口中的一个分页，是 Session Host。关闭它结束的是这次运行，不是这次对话。
 _Avoid_: 终端窗口、console、Pi Session 的宿主（旧定义）
 
 **Terminal Engine**:

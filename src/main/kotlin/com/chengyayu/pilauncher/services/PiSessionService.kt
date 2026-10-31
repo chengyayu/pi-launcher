@@ -10,8 +10,6 @@ import com.chengyayu.pilauncher.domain.PiCommandLine
 import com.chengyayu.pilauncher.domain.PiSessionId
 import com.chengyayu.pilauncher.domain.PiSessionReadout
 import com.chengyayu.pilauncher.infrastructure.IdePiNotifier
-import com.chengyayu.pilauncher.infrastructure.EditorTabSessionHost
-import com.chengyayu.pilauncher.infrastructure.PiHostChoice
 import com.chengyayu.pilauncher.infrastructure.ToolWindowSessionHost
 import com.chengyayu.pilauncher.infrastructure.PiSessionHost
 import com.chengyayu.pilauncher.infrastructure.PiSessionIdProbe
@@ -56,7 +54,7 @@ class PiSessionService(private val project: Project) : Disposable {
         },
         newSessionId = { if (sessionIds.isSupported()) PiSessionId.new() else null },
         store = PersistentPiSessionStore.getInstance(project),
-        host = sessionHost(project),
+        host = ToolWindowSessionHost(project),
         notifier = IdePiNotifier(project),
         publishCount = PiSessionListener.publisherFor(project),
         publishReadouts = PiSessionStatusListener.publisherFor(project),
@@ -76,13 +74,6 @@ class PiSessionService(private val project: Project) : Disposable {
             sessionIds.probe()
         }
     }
-
-    /**
-     * The Terminal tool window until the editor tab has been proven on a real IDE; the
-     * switch and one of these two Hosts disappear together (`docs/adr/0007`).
-     */
-    private fun sessionHost(project: Project): PiSessionHost =
-        if (PiHostChoice.editorRequested()) EditorTabSessionHost(project) else ToolWindowSessionHost(project)
 
     private fun piLaunchOptions() = PiSettings.getInstance().state.toLaunchOptions()
 

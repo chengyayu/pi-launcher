@@ -100,10 +100,6 @@
         <fileEditorProvider
                 implementation="com.chengyayu.pilauncher.ui.PiDashboardEditorProvider"/>
 
-        <!-- One Pi Session's terminal as an editor tab (docs/adr/0006) -->
-        <fileEditorProvider
-                implementation="com.chengyayu.pilauncher.ui.PiTerminalEditorProvider"/>
-
         <statusBarWidgetFactory
                 id="PiLauncherStatus"
                 implementation="com.chengyayu.pilauncher.services.PiStatusWidgetFactory"
