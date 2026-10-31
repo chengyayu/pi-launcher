@@ -174,6 +174,7 @@ version` 按预期报红（tag 与 0.4.3 不符），Test/Build/Publish 都没�
 所以这条红 run 留在 Actions 历史里是验证痕迹，不是故障。
 
 ## CI 工具链
+
 | 项 | 值 |
 |---|---|
 | runner | `ubuntu-24.04`（固定，不用 `ubuntu-latest`） |
