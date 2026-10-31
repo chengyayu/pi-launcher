@@ -167,3 +167,8 @@ gh workflow run publish.yml --ref main
 
 `gh workflow run` 走的是 `main` 的最新提交，没有 tag，所以 `Check tag against plugin version`
 那步是 skipped：手动补发时**自己确认** `build.gradle.kts` 的 version 就是想传的版本。
+
+改成 `published` 之后实测验证过一次（run 41180019712）：在 main 上打临时 tag
+`v0.0.0-trigger-check` 建一个非 draft 的 release，run 被自动拉起，在 `Check tag against plugin
+version` 按预期报红（tag 与 0.4.3 不符），Test/Build/Publish 都没跑。release 与 tag 随即已删除，
+所以这条红 run 留在 Actions 历史里是验证痕迹，不是故障。
