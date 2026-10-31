@@ -5,15 +5,15 @@ JetBrains 插件，用于在 IDE 的 Terminal 工具窗口中启动和驱动 [Pi
 ## Language
 
 **Pi Session**:
-一次与 pi 的对话：pi 自己的会话文件、正在驱动它的进程（若在运行），以及插件为它保留的身份。一个 project 可以同时有多个 Pi Session；界面关掉只是这次运行结束，对话还在。
+一次与 pi 的对话：pi 自己的会话文件，以及正在驱动它的那个进程。插件只跟随后者——进程退出或 Host 关闭，插件就不再记得这个会话（对话本身仍在 pi 那边）。一个 project 可以同时有多个 Pi Session。
 _Avoid_: Pi 实例、pi 进程（口语场景）、Pi tab（指逻辑实例时）
 
 **Session Host**:
-承载一个 Pi Session 的界面容器，一个 Session 至多有一个 Host。当前唯一的实现是 Terminal Tab；换 Host 不改变 Session。
+承载一个 Pi Session 的界面容器，一个 Session 至多有一个 Host，两者同生共死。当前唯一的实现是 Terminal Tab。
 _Avoid_: Pi tab（指逻辑实例时）、窗口
 
 **Terminal Tab**:
-Terminal 工具窗口中的一个分页，是 Session Host。关闭它结束的是这次运行，不是这次对话。
+Terminal 工具窗口中的一个分页，是 Session Host。关闭它，对应的 Pi Session 也随之结束。
 _Avoid_: 终端窗口、console、Pi Session 的宿主（旧定义）
 
 **Terminal Engine**:
@@ -21,7 +21,7 @@ JetBrains 终端的两种实现：classic（JediTerm）与 block（2024.3+ 默�
 _Avoid_: 终端类型、新/旧终端
 
 **Session Registry**:
-一个 project 内所有 Pi Session 的集合。插件通过它而不是单一字段来跟踪全部会话。
+一个 project 内当前运行的所有 Pi Session 的集合。插件通过它而不是单一字段来跟踪会话。
 _Avoid_: session 列表、sessions map（指概念时）
 
 **Active Session**:
@@ -53,5 +53,5 @@ _Avoid_: reporter 脚本、状态插件
 _Avoid_: status（不加限定时）、推定状态
 
 **Session Dashboard**:
-展示 Session Registry 中每个 Pi Session 的 Session Status 的单一面板。
+展示 Session Registry 中每个 Pi Session 的 Session Status 的单一面板；表里的每一行都是一次运行。
 _Avoid_: 控制面板、状态面板、dashboard

@@ -12,8 +12,6 @@ object PiCommandLine {
      */
     private const val NO_IMAGES = "PI_IMAGE_PROTOCOL=none"
 
-    private const val SESSION = "--session"
-
     /**
      * No `--session-id` (Pi warns about every id it has not seen) and no `--name` (Pi would
      * print the IDE label in its footer): the identity is read back from Pi (`docs/adr/0006`).
@@ -39,28 +37,6 @@ object PiCommandLine {
             parts += "--thinking"
             parts += it
         }
-
-        options.extraArgs.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
-
-        return parts.joinToString(" ")
-    }
-
-    /** Reopens the conversation Pi stores under [sessionId]; `--session-id` cannot go with `--session` (`docs/adr/0006`). */
-    fun resume(
-        options: PiLaunchOptions,
-        sessionId: String,
-        extensionPath: String? = null,
-        windows: Boolean = System.getProperty("os.name").orEmpty().startsWith("Windows")
-    ): String {
-        val parts = mutableListOf(command(options, windows))
-
-        extensionPath?.takeIf { it.isNotBlank() }?.let {
-            parts += EXTENSION
-            parts += quote(it)
-        }
-
-        parts += SESSION
-        parts += sessionId
 
         options.extraArgs.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
 

@@ -34,8 +34,6 @@ class PiSessionRegistryTest {
 
     private val startCommands = CopyOnWriteArrayList<String?>()
 
-    private val resumeCommands = CopyOnWriteArrayList<String>()
-
     private val pollScheduler = PiScheduler { _, repeat, action ->
         if (repeat) polls += action else action()
         NoopDisposable
@@ -55,19 +53,13 @@ class PiSessionRegistryTest {
     }
 
     private fun newRegistry(
-        statusChannels: PiStatusChannelProvider = PiStatusChannelProvider.NONE,
-        store: PiSessionStore = PiSessionStore.inMemory()
+        statusChannels: PiStatusChannelProvider = PiStatusChannelProvider.NONE
     ) = PiSessionRegistry(
         workingDirectory = { "/work" },
         startCommand = { extensionPath ->
             startCommands += extensionPath
             "pi --no-themes"
         },
-        resumeCommand = { id, _ ->
-            resumeCommands += id
-            "pi --session $id"
-        },
-        store = store,
         host = provider,
         notifier = notifier,
         publishCount = { counts += it },
@@ -340,143 +332,17 @@ class PiSessionRegistryTest {
         assertEquals(0, provider.focusCount)
     }
 
-    // ---- identity and parked sessions (docs/adr/0006) ----------------------
+    // ---- a run and its session end together (docs/adr/0009) ----------------
 
     @Test
-    fun `the identity Pi reports becomes the session's`() {
-        newRegistry(statusChannels = channels(ID)).use { registry ->
-            registry.launch()
-            runPolls()
-
-            assertEquals(ID, registry.readouts.single().id)
-        }
-    }
-
-    @Test
-    fun `a Pi that cannot report an identity starts an unidentified session`() {
-        newRegistry(statusChannels = channels(null)).use { registry ->
-            registry.launch()
-            runPolls()
-
-            assertNull(registry.readouts.single().id)
-        }
-    }
-
-    @Test
-    fun `closing a Host parks the conversation instead of forgetting it`() {
+    fun `closing a Host ends the session`() {
         newRegistry(statusChannels = channels(ID)).use { registry ->
             registry.launch()
             runPolls()
             provider.close("Pi 1")
 
             assertEquals(0, registry.runningCount, "the run is over")
-            val parked = registry.readouts.single()
-            assertFalse(parked.running, "the session is still there, without a Host")
-            assertEquals("Pi 1", parked.tabName)
-            assertEquals(ID, parked.id)
-        }
-    }
-
-    @Test
-    fun `a parked session is reopened on the conversation Pi stores`() {
-        val store = PiSessionStore.inMemory()
-        newRegistry(statusChannels = channels(ID), store = store).use { registry ->
-            registry.launch()
-            runPolls()
-            provider.close("Pi 1")
-
-            registry.resume(ID)
-
-            assertEquals(1, registry.runningCount)
-            assertEquals(ID, resumeCommands.single())
-            assertEquals(
-                "pi --session $ID",
-                provider.created.last().terminal.sent.single().text,
-                "the resumed run continues the conversation, it does not start a new one"
-            )
-            assertTrue(registry.readouts.none { !it.running }, "the session is live again")
-        }
-    }
-
-    /**
-     * Reopening needs a Host, and a Host can refuse. The conversation is Pi's and is
-     * still on disk, so a failure here may not cost the plugin's record of it.
-     */
-    @Test
-    fun `a Host that refuses to open leaves the session to be reopened again`() {
-        newRegistry(statusChannels = channels(ID)).use { registry ->
-            registry.launch()
-            runPolls()
-            provider.close("Pi 1")
-
-            provider.failOnCreate = true
-            registry.resume(ID)
-
-            val stillParked = registry.readouts.single()
-            assertFalse(stillParked.running, "nothing opened, so nothing is running")
-            assertEquals(ID, stillParked.id)
-
-            provider.failOnCreate = false
-            registry.resume(ID)
-
-            assertTrue(registry.readouts.single().running, "the second attempt must work")
-        }
-    }
-
-    @Test
-    fun `resuming a running session only focuses it`() {
-        newRegistry(statusChannels = channels(ID)).use { registry ->
-            registry.launch()
-            runPolls()
-
-            registry.resume(ID)
-
-            assertEquals(1, provider.created.size, "a live session is not reopened")
-            assertEquals(1, provider.focusCount)
-        }
-    }
-
-    @Test
-    fun `parked sessions are remembered across registries`() {
-        val store = PiSessionStore.inMemory()
-        newRegistry(statusChannels = channels(ID), store = store).use { first ->
-            first.launch()
-            runPolls()
-            provider.close("Pi 1")
-        }
-
-        newRegistry(statusChannels = channels(null), store = store).use { second ->
-            assertEquals(listOf("Pi 1"), second.readouts.map { it.tabName })
-            assertFalse(second.readouts.single().running)
-        }
-    }
-
-    @Test
-    fun `renaming a parked session changes only its label`() {
-        newRegistry(statusChannels = channels(ID)).use { registry ->
-            registry.launch()
-            runPolls()
-            provider.close("Pi 1")
-
-            registry.renameParked(ID, "api work")
-
-            val parked = registry.readouts.single()
-            assertEquals("api work", parked.tabName)
-            assertEquals(ID, parked.id, "the identity is not the label")
-        }
-    }
-
-    @Test
-    fun `an id this plugin did not create is never handed to Pi`() {
-        newRegistry(statusChannels = channels(ID)).use { registry ->
-            registry.launch()
-            runPolls()
-            provider.close("Pi 1")
-
-            registry.resume("--session-id evil; rm -rf /")
-
-            assertEquals(1, provider.created.size, "no Host may be opened for a foreign id")
-            assertTrue(resumeCommands.isEmpty())
+            assertTrue(registry.readouts.isEmpty(), "nothing of it is left on the dashboard")
         }
     }
 

@@ -15,6 +15,8 @@ import kotlin.test.assertTrue
 /** Lifecycle of a single session: start command, prompt input, exit polling. */
 class PiSessionTest {
 
+    private val ID = "6f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+
     /** Advanced by tests that exercise the startup grace period. */
     private var clockMillis = 0L
 
@@ -93,6 +95,31 @@ class PiSessionTest {
             assertEquals(PiStatus.State.BLOCKED, session.status?.state)
             assertEquals(PiStatus.Kind.CONFIRM, session.status?.kind)
             assertEquals("Allow tool call?", session.status?.message)
+        }
+    }
+
+    /**
+     * The id only ever reaches a log line now that nothing reopens a closed session
+     * (`docs/adr/0009`), but it still has to be Pi's: a hand-edited status file must not
+     * put arbitrary text into the log as if Pi had said it.
+     */
+    @Test
+    fun `takes the first well-formed identity Pi reports, and nothing else`() {
+        val source = FakeStatusSource()
+        newSession(statusSource = source).use { session ->
+            session.start()
+
+            source.identity = "--session-id evil; rm -rf /"
+            manual!!.statusPoll.invoke()
+            assertNull(session.id, "an id Pi could not have produced is not adopted")
+
+            source.identity = ID
+            manual!!.statusPoll.invoke()
+            assertEquals(ID, session.id)
+
+            source.identity = "someone-elses-id"
+            manual!!.statusPoll.invoke()
+            assertEquals(ID, session.id, "the identity of a run does not change under it")
         }
     }
 

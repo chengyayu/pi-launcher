@@ -1,7 +1,8 @@
 # A Pi Session owns its identity; a terminal tab is only one way to show one
 
-Status: accepted for the identity split. The editor-tab Session Host is a separate,
-still-open step; a static audit of IC-243.21565.193 found the platform doing exactly
+Status: superseded in part by `docs/adr/0009` - a session still owns its identity, but
+it no longer outlives its Host: closing the tab ends the session and nothing reopens it.
+The editor-tab Session Host is a separate, still-open step; a static audit of IC-243.21565.193 found the platform doing exactly
 this itself (`plugins/terminal/…/vfs/TerminalSessionEditor` returns
 `widget.getComponent()` from a `FileEditor`, and `AbstractTerminalRunner.startShellTerminalWidget`
 creates a widget without a tool-window `Content`), so the Host half is a matter of

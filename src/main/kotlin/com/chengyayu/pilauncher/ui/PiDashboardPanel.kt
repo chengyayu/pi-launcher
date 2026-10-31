@@ -5,7 +5,6 @@ import com.chengyayu.pilauncher.services.PiSessionService
 import com.chengyayu.pilauncher.services.PiSessionStatusListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
@@ -20,9 +19,9 @@ import javax.swing.JPanel
 import javax.swing.ListSelectionModel
 
 /**
- * The Session Dashboard: every Pi Session and the Session Status Pi reports for the running
- * ones (`docs/adr/0005`). It never invents a state, and it only offers actions that cannot
- * disturb a running session - showing, reopening, renaming, starting another (`docs/adr/0006`).
+ * The Session Dashboard: the running Pi Sessions and the Session Status Pi reports for them
+ * (`docs/adr/0005`). It never invents a state, and it only offers actions that cannot disturb
+ * a running session - showing it, or starting another.
  */
 internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
@@ -31,8 +30,6 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
     private val cards = CardLayout()
     private val content = JPanel(cards)
     private val showInTerminal = JButton("Show in Terminal")
-    private val resume = JButton("Resume")
-    private val rename = JButton("Rename…")
 
     private val service: PiSessionService get() = PiSessionService.getInstance(project)
 
@@ -51,10 +48,10 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
         table.columnModel.getColumn(COLUMN_DETAIL).preferredWidth = JBUI.scale(320)
 
         table.addMouseListener(object : MouseAdapter() {
-            /** Looking at a running session means going to it. */
+            /** Looking at a session means going to it. */
             override fun mouseClicked(event: MouseEvent) {
                 if (event.clickCount != 1 || table.rowAtPoint(event.point) < 0) return
-                if (selected()?.running == true) focusSelected()
+                focusSelected()
             }
         })
         table.selectionModel.addListSelectionListener { updateActions() }
@@ -63,16 +60,12 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
         content.add(JBScrollPane(table), CARD_TABLE)
 
         showInTerminal.addActionListener { focusSelected() }
-        resume.addActionListener { selected()?.id?.let(service::resume) }
-        rename.addActionListener { renameSelected() }
 
         val newSession = JButton("New Pi Session")
         newSession.addActionListener { service.newSession() }
 
         val actions = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), JBUI.scale(6)))
         actions.add(showInTerminal)
-        actions.add(resume)
-        actions.add(rename)
         actions.add(newSession)
 
         add(content, BorderLayout.CENTER)
@@ -100,38 +93,20 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
 
     private fun selected(): PiSessionReadout? = model.sessionAt(table.selectedRow)
 
-    private fun keyOf(readout: PiSessionReadout): String = readout.id ?: readout.tabName
+    private fun keyOf(readout: PiSessionReadout): String = readout.tabName
 
     private fun updateActions() {
-        val session = selected()
-        showInTerminal.isEnabled = session?.running == true
-        // The two actions that only exist here.
-        resume.isEnabled = session != null && !session.running && session.id != null
-        rename.isEnabled = session != null && !session.running && session.id != null
+        showInTerminal.isEnabled = selected() != null
     }
 
     private fun focusSelected() {
-        selected()?.takeIf { it.running }?.let { service.focus(it.tabName) }
-    }
-
-    private fun renameSelected() {
-        val session = selected()?.takeIf { !it.running } ?: return
-        val name = Messages.showInputDialog(
-            project,
-            "Name for this Pi session.",
-            "Rename Pi Session",
-            null,
-            session.tabName,
-            null
-        ) ?: return
-
-        session.id?.let { service.renameParked(it, name) }
+        selected()?.let { service.focus(it.tabName) }
     }
 
     private fun emptyState(): JPanel {
         val panel = JPanel(BorderLayout())
         panel.add(
-            JBLabel("No Pi sessions yet. Start one with New Pi Session below."),
+            JBLabel("No Pi sessions running. Start one with New Pi Session below."),
             BorderLayout.CENTER
         )
         panel.border = JBUI.Borders.empty(JBUI.scale(16))

@@ -19,9 +19,8 @@
 - **发送选区** — 选中代码 → 右键 → "Send to Pi"，自动插入 `@path/file.go#L10-25` 到当前会话（Active Session）输入框；在项目树里右键**文件或文件夹**，发送它的 `@path`
 - **拖文件给 Pi** — 把截图或任意文件拖到 Pi tab 上，路径以 `@path` 插入输入框（不提交），不会再新建一个 Local tab
 - **真实状态** — 状态栏显示 pi 在做什么（`working` / `blocked` / `done` / `error` / `idle`），而不是开了几个 tab
-- **Session Dashboard** — 一个编辑器 tab 列出所有会话及其状态，以及 pi 自己说的话：卡在哪个对话框、错误首行、正在跑的工具调用
+- **Session Dashboard** — 一个编辑器 tab 列出运行中的会话及其状态，以及 pi 自己说的话：卡在哪个对话框、错误首行、正在跑的工具调用
 - **重命名 tab 就等于重命名会话** — 面板与 tooltip 都用 tab 的显示名，`Pi 1` 改成 `api work` 后到处都叫 `api work`
-- **关掉面板，不丢对话** — 插件会读回 pi 为每个会话分配的身份，关 tab 结束的是一次运行，不是这次工作：面板里它是 `not running`，可以沿着 pi 自己的会话文件重新打开
 - **模型配置** — 从 `~/.pi/agent/models.json` 里选模型，并选 thinking level，或直接填写任意模型 id
 
 所有会话共用同一套设置，命令在会话启动时取快照。
@@ -38,13 +37,13 @@
 | `error` | 一次 run 因错误结束且 pi 未重试 |
 | `idle` | pi 刚启动，或你取消了这次 run |
 
-**没有报告的会话显示 `no status from Pi`，绝不会显示 `idle`。** 不是每个 pi 版本都能被报告，而插件看不到状态时应该说看不到，而不是编一个——状态栏把这种会话计为 `N unknown`，不会把它算进某个状态。**tab 已经关掉的会话显示 `not running`**：这不属于 pi 的任何状态，因为没有东西在跑，而它最后说的话属于已经结束的那次运行。
+**没有报告的会话显示 `no status from Pi`，绝不会显示 `idle`。** 不是每个 pi 版本都能被报告，而插件看不到状态时应该说看不到，而不是编一个——状态栏把这种会话计为 `N unknown`，不会把它算进某个状态。**tab 关掉、或 `pi` 进程退出的会话直接消失**：没有东西在跑，就没有状态可显示。
 
 状态的来源是插件加载进 pi 进程的一个小扩展（`--extension`，见 `docs/adr/0005`）——因为 pi 自带的状态协议是 IDE 终端会丢弃的 OSC 转义序列（见 `docs/adr/0004`）。插件会先问 pi 是否接受该 flag，老版本 pi 照常工作，只是没有状态。
 
-点击状态栏打开 **Session Dashboard**；**Alt+点击** 直接新开一个会话。关掉某个会话的 tab 不会丢掉这次对话：插件记得它启动时用的身份，面板会用 `pi --session <id>` 把它重新打开，从上一次 pi 落盘的位置继续——不是接回那个已经消失的进程。
+点击状态栏打开 **Session Dashboard**；**Alt+点击** 直接新开一个会话。一个 Pi Session 的寿命就是这次运行的寿命：关掉它的 tab、或 `pi` 进程退出，它就从面板和状态栏里消失。对话本身还在 pi 那边，只是插件不再提供重开的入口（`docs/adr/0009`）。
 
-面板只做这些、以及不会打扰运行中会话的事：切到 Terminal tab、重新打开一个已关闭的会话、给它改名、再开一个。状态栏只统计正在运行的会话。
+面板只做这些、以及不会打扰运行中会话的事：切到 Terminal tab，或者再开一个。改 tab 名会同步到所有显示会话名的地方。
 
 ## 默认安静
 
@@ -150,12 +149,10 @@ src/main/kotlin/com/chengyayu/pilauncher/
 ├── util/                                  # 小工具：合并突发、调度延时任务
 │   ├── PiChangeDebouncer.kt               # 合并写入突发，无 IDE 依赖
 │   └── PiScheduler.kt                     # 延时任务藏在一个接口后面（可伪造）
-├── services/                              # 生命周期：单会话、全部会话、已停放状态
+├── services/                              # 生命周期：单会话、全部会话、Active Session
 │   ├── PiSessionService.kt                # 面向 project 的适配层
-│   ├── PiSessionRegistry.kt               # 运行与停放的会话 + Active Session
+│   ├── PiSessionRegistry.kt               # 运行中的会话 + Active Session
 │   ├── PiSession.kt                       # 一个会话的生命周期
-│   ├── PiSessionStore.kt                  # 按项目停放会话
-│   ├── PersistentPiSessionStore.kt        # ……以及它的状态文件
 │   ├── PiSessionListener.kt               # 可观察的运行会话数（topic）
 │   ├── PiSessionStatusListener.kt         # 可观察的会话快照（topic）
 │   ├── PiCommandDispatcher.kt             # 投递启动命令

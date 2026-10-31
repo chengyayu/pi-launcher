@@ -15,12 +15,6 @@ class PiCommandLineTest {
         extensionPath: String? = null
     ) = PiCommandLine.render(options, extensionPath, windows = false)
 
-    private fun resume(
-        options: PiLaunchOptions = PiLaunchOptions(),
-        sessionId: String,
-        extensionPath: String? = null
-    ) = PiCommandLine.resume(options, sessionId, extensionPath, windows = false)
-
     @Test
     fun `renders the bare command`() {
         assertEquals("$noImages pi", render())
@@ -101,28 +95,6 @@ class PiCommandLineTest {
         assertFalse(render().contains("--name"))
     }
 
-    @Test
-    fun `resumes on the stored conversation without choosing a new identity`() {
-        val command = resume(
-            sessionId = "pilaunch-0a1b2c3d",
-            extensionPath = "/tmp/pi-launcher/pi 1/status.ts"
-        )
-
-        assertEquals(
-            "$noImages pi --extension \"/tmp/pi-launcher/pi 1/status.ts\" --session pilaunch-0a1b2c3d",
-            command
-        )
-        assertFalse(command.contains("--session-id"), "Pi rejects --session-id together with --session")
-    }
-
-    @Test
-    fun `keeps the extra arguments when resuming`() {
-        assertEquals(
-            "$noImages pi --session pilaunch-0a1b2c3d --verbose",
-            resume(PiLaunchOptions(extraArgs = "--verbose"), "pilaunch-0a1b2c3d")
-        )
-    }
-
     /**
      * The IDE terminal can draw neither Kitty graphics nor iTerm2 inline images. Pi's
      * `auto` detection gets that wrong and emits image data as a sequence the terminal
@@ -131,7 +103,6 @@ class PiCommandLineTest {
     @Test
     fun `tells Pi the terminal cannot show images`() {
         assertTrue(PiCommandLine.render(PiLaunchOptions(), windows = false).startsWith(noImages))
-        assertTrue(PiCommandLine.resume(PiLaunchOptions(), "pilaunch-a", windows = false).startsWith(noImages))
     }
 
     /** On Windows the IDE opens PowerShell, where an environment assignment looks different. */

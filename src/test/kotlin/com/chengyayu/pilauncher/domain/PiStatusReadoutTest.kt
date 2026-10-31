@@ -175,42 +175,6 @@ class PiStatusReadoutTest {
         assertEquals("• Pi 1: blocked — Allow tool call?", PiStatusReadout.tooltip(listOf(blocked)))
     }
 
-    /**
-     * A Pi Session with no Host is none of the three things above: Pi is not running, so
-     * it has no state, and whatever it reported belongs to the run that is over
-     * (`docs/adr/0006`).
-     */
-    @Test
-    fun `a session with no Host reads as not running`() {
-        val parked = PiSessionReadout(
-            "Pi 1",
-            PiStatus(PiStatus.State.WORKING),
-            active = false,
-            running = false,
-            id = "pilaunch-0a1b2c3d"
-        )
-
-        assertEquals(PiStatusReadout.NOT_RUNNING, PiStatusReadout.stateLabel(parked))
-        assertNull(PiStatusReadout.detail(parked), "the last run's words are stale")
-    }
-
-    @Test
-    fun `the status bar describes the runs, not the conversations`() {
-        val running = readout("Pi 1", PiStatus.State.WORKING)
-        val parked = PiSessionReadout("Pi 2", status = null, active = false, running = false)
-
-        assertEquals("π 1 working", PiStatusReadout.text(listOf(running, parked)))
-        assertEquals("Pi 1: working", PiStatusReadout.tooltip(listOf(running, parked)))
-    }
-
-    @Test
-    fun `says all-idle when everything that is left has no Host`() {
-        val parked = PiSessionReadout("Pi 1", status = null, active = false, running = false)
-
-        assertEquals("π all-idle", PiStatusReadout.text(listOf(parked)))
-        assertEquals("No Pi sessions running.", PiStatusReadout.tooltip(listOf(parked)))
-    }
-
     private fun readout(tabName: String, state: PiStatus.State?) =
         PiSessionReadout(tabName, state?.let { PiStatus(it) }, active = false)
 }

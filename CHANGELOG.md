@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.5
+
+### Changed
+
+- **A closed session leaves the dashboard.** Every session that had ever run in the project
+  used to stay there as `not running`: the same words for each, an empty Detail column, no
+  time and no way to remove a row. They were listed to be reopened with `pi --session <id>`;
+  that is Pi's own command line now, and the dashboard lists what is running
+  (`docs/adr/0009`). `Resume` and `Rename…` went with those rows - renaming the tab still
+  renames the session everywhere.
+
 ## 0.4.4
 
 No user-visible change: this release clears the last verification warning.

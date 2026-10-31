@@ -18,8 +18,7 @@ interface PiTerminal {
 }
 
 /**
- * Where Pi Sessions are shown: at most one Host per session. A Host can outlive its run, and
- * a session can outlive its Host - it is parked and reopened later (`docs/adr/0006`).
+ * Where Pi Sessions are shown: at most one Host per session, and the two live and end together.
  */
 interface PiSessionHost {
 

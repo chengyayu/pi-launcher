@@ -2,8 +2,8 @@ package com.chengyayu.pilauncher.domain
 
 /**
  * Pi's own id for a conversation, read back from the session (`docs/adr/0006`). Pi accepts
- * only letters, numbers, `.`, `_` and `-`; the parked list is a hand-editable file, so an id
- * is checked before it reaches a command line.
+ * only letters, numbers, `.`, `_` and `-`, and a hand-edited status file is not evidence of
+ * anything, so an id is checked before it is treated as one.
  */
 object PiSessionId {
 

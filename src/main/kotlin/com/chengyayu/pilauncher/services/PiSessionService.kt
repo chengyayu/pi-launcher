@@ -37,10 +37,6 @@ class PiSessionService(private val project: Project) : Disposable {
         startCommand = { extensionPath ->
             PiCommandLine.render(piLaunchOptions(), extensionPath)
         },
-        resumeCommand = { id, extensionPath ->
-            PiCommandLine.resume(piLaunchOptions(), id, extensionPath)
-        },
-        store = PersistentPiSessionStore.getInstance(project),
         host = ToolWindowSessionHost(project),
         notifier = IdePiNotifier(project),
         publishCount = PiSessionListener.publisherFor(project),
@@ -63,7 +59,7 @@ class PiSessionService(private val project: Project) : Disposable {
 
     val runningCount: Int get() = registry.runningCount
 
-    /** Every session, parked ones included. */
+    /** Every running session. */
     val readouts: List<PiSessionReadout> get() = registry.readouts
 
     fun isRunning(): Boolean = registry.isRunning()
@@ -71,10 +67,6 @@ class PiSessionService(private val project: Project) : Disposable {
     fun launch() = registry.launch()
 
     fun newSession() = registry.newSession()
-
-    fun resume(id: String) = registry.resume(id)
-
-    fun renameParked(id: String, name: String) = registry.renameParked(id, name)
 
     fun submitText(text: String) = registry.submitText(text)
 

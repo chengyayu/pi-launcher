@@ -19,9 +19,8 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 - **Send to Pi** — Select code → Right-click → "Send to Pi" inserts `@path/file.go#L10-25` into the active session's input; right-clicking a **file or folder** in the Project View sends its `@path` the same way
 - **Drop a file on Pi** — Dropping a screenshot or any file on a Pi tab inserts `@path` into its prompt (the same reference, no submit); it never starts a new terminal tab
 - **Live session status** — The status bar shows what Pi is doing (`working`, `blocked`, `done`, `error`, `idle`), not how many tabs happen to be open
-- **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
+- **Session Dashboard** — One editor tab listing the running sessions with their state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
 - **Rename a tab, rename the session** — The dashboard and the tooltip use the tab's display name, so `Pi 1` renamed to `api work` is `api work` everywhere
-- **Close the panel, keep the conversation** — the plugin reads back the identity Pi gives each session, so closing its tab ends the run, not the work: the dashboard lists it as `not running` and reopens it on Pi's own session file
 - **Model configuration** — Pick a model from `~/.pi/agent/models.json` and a thinking level, or type any model id
 
 All sessions share the same settings; the command line is a snapshot taken when a session starts.
@@ -52,14 +51,14 @@ whether it accepts the flag before using it, so an older Pi keeps working and si
 reports no status.
 
 Click the status bar entry to open the **Session Dashboard**; **Alt+click** starts a
-new session without leaving what is on screen. Closing a session's tab does not lose
-the conversation: it keeps the identity Pi was started under, and the dashboard
-reopens that session with `pi --session <id>`, continuing from the last thing Pi
-persisted — not from the process that is gone.
+new session without leaving what is on screen. A Pi Session lasts exactly as long as
+its run: closing its tab, or the `pi` process exiting, takes it off the dashboard and
+out of the status bar. Pi still keeps the conversation on disk - the plugin just no
+longer offers to reopen it (`docs/adr/0009`).
 
 The dashboard does that and nothing that could disturb a running session: show one in
-the Terminal window, reopen a closed one, rename a closed one, or start another. The
-status bar only counts what is running.
+the Terminal window, or start another. Renaming a tab renames the session
+everywhere.
 
 ## Silent by design
 
@@ -192,12 +191,10 @@ src/main/kotlin/com/chengyayu/pilauncher/
 ├── util/                                  # Small helpers: coalescing bursts, scheduling work
 │   ├── PiChangeDebouncer.kt               # Coalesces write bursts, IDE-free
 │   └── PiScheduler.kt                     # Delayed work behind an interface (fakeable)
-├── services/                              # Lifecycle: one session, all sessions, their parked state
+├── services/                              # Lifecycle: one session, all sessions, the Active Session
 │   ├── PiSessionService.kt                # Project-facing adapter
-│   ├── PiSessionRegistry.kt               # Running and parked sessions, Active Session
+│   ├── PiSessionRegistry.kt               # Running sessions, Active Session
 │   ├── PiSession.kt                       # One session's lifecycle
-│   ├── PiSessionStore.kt                  # Parked sessions, per project
-│   ├── PersistentPiSessionStore.kt        # ...and its state file
 │   ├── PiSessionListener.kt               # Observable running-session count (topic)
 │   ├── PiSessionStatusListener.kt         # Observable session snapshot (topic)
 │   ├── PiCommandDispatcher.kt             # Sends the start command

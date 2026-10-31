@@ -20,7 +20,7 @@ internal class PiSession(
     /** The Host's display name; renaming the Host updates it. */
     @Volatile
     var tabName: String,
-    /** Outlives this run, unlike [channelId]: the id a resumed session has, or the one Pi reports (`docs/adr/0006`). */
+    /** Pi's id for this run's conversation, reported by the extension (`docs/adr/0006`). */
     id: String?,
     /** The status channel's directory name: unique per run. */
     val channelId: String,
@@ -137,22 +137,25 @@ internal class PiSession(
             if (exited) return@schedule
 
             val report = source.read() ?: return@schedule
-            val learned = adoptIdentity(report.identity)
+            adoptIdentity(report.identity)
 
-            if (report.status == status && !learned) return@schedule
+            if (report.status == status) return@schedule
 
             status = report.status
             onStatusChanged(this)
         }
     }
 
-    /** Only the first valid id Pi reports: the dashboard reopens the session with it, so it must not change later. */
-    private fun adoptIdentity(reported: String?): Boolean {
-        if (id != null || reported == null) return false
-        if (!PiSessionId.isValid(reported)) return false
+    /**
+     * Only the first valid id Pi reports. Nothing here reopens it; the id says which conversation
+     * a tab is driving when the log is read afterwards.
+     */
+    private fun adoptIdentity(reported: String?) {
+        if (id != null || reported == null) return
+        if (!PiSessionId.isValid(reported)) return
 
         id = reported
-        return true
+        logger.info("Pi session $reported is driving $tabName")
     }
 
     override fun dispose() {
