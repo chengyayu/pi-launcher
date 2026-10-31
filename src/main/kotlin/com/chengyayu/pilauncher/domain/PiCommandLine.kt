@@ -19,6 +19,17 @@ object PiCommandLine {
      */
     private const val EXTENSION = "--extension"
 
+    /**
+     * Tells Pi that this terminal cannot draw inline images.
+     *
+     * The IDE terminal implements neither the Kitty graphics protocol nor iTerm2's inline
+     * images, and Pi's `auto` detection guesses wrong: it emits Kitty image data as an APC
+     * sequence (`ESC _`), which the classic engine cannot parse - it logs a warning per
+     * chunk and can swallow the keystrokes that follow. Nothing is lost by saying so: the
+     * image was never going to appear (`docs/adr/0007`).
+     */
+    private const val NO_IMAGES = "PI_IMAGE_PROTOCOL=none"
+
     /** Chooses the identity of a new Pi Session (`docs/adr/0006`). */
     private const val SESSION_ID = "--session-id"
 
@@ -36,9 +47,10 @@ object PiCommandLine {
     fun render(
         options: PiLaunchOptions,
         extensionPath: String? = null,
-        sessionId: String? = null
+        sessionId: String? = null,
+        windows: Boolean = System.getProperty("os.name").orEmpty().startsWith("Windows")
     ): String {
-        val parts = mutableListOf(command(options))
+        val parts = mutableListOf(command(options, windows))
 
         extensionPath?.takeIf { it.isNotBlank() }?.let {
             parts += EXTENSION
@@ -73,8 +85,13 @@ object PiCommandLine {
      * `--session-id` is deliberately absent: Pi rejects it together with `--session`,
      * and the identity already exists (`docs/adr/0006`).
      */
-    fun resume(options: PiLaunchOptions, sessionId: String, extensionPath: String? = null): String {
-        val parts = mutableListOf(command(options))
+    fun resume(
+        options: PiLaunchOptions,
+        sessionId: String,
+        extensionPath: String? = null,
+        windows: Boolean = System.getProperty("os.name").orEmpty().startsWith("Windows")
+    ): String {
+        val parts = mutableListOf(command(options, windows))
 
         extensionPath?.takeIf { it.isNotBlank() }?.let {
             parts += EXTENSION
@@ -90,8 +107,15 @@ object PiCommandLine {
         return parts.joinToString(" ")
     }
 
-    private fun command(options: PiLaunchOptions): String =
-        options.command.ifBlank { PiLaunchOptions.DEFAULT_COMMAND }
+    /**
+     * The command with the image protocol turned off in front of it - as an environment
+     * assignment for a POSIX shell, or a `$env:` assignment for the PowerShell the IDE
+     * opens on Windows.
+     */
+    private fun command(options: PiLaunchOptions, windows: Boolean): String {
+        val pi = options.command.ifBlank { PiLaunchOptions.DEFAULT_COMMAND }
+        return if (windows) "\$env:PI_IMAGE_PROTOCOL='none'; $pi" else "$NO_IMAGES $pi"
+    }
 
     /**
      * Always quoted: the path lives under a temporary directory, which can contain
