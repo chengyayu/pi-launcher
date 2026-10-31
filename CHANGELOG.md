@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.3
+
+No user-visible change: this release is the documentation pass.
+
+### Changed
+
+- **The source comments say only what the code cannot.** Comments had drifted from the
+  code they describe - an editor-tab Host that was removed, a status bar that does not
+  read the running-session count, a liveness API the plugin no longer calls - so they
+  were rewritten against the code and cut by more than half, from 984 lines to 456.
+  What is left is the platform quirks, the ordering constraints and the ADR pointers.
+- **The READMEs describe the plugin that exists.** The project tree listed a file that
+  does not exist (`PiVfsUtils`) and omitted eleven that do; the input-queueing and
+  liveness descriptions predated the 0.4.2 fix; `util` was claimed to carry no IntelliJ
+  types. The Chinese README gained the missing Project Structure section.
+
 ## 0.4.2
 
 ### Changed
