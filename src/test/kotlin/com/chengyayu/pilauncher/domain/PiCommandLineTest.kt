@@ -75,33 +75,22 @@ class PiCommandLineTest {
     }
 
     @Test
-    fun `chooses the identity and the name Pi shows`() {
-        val command = PiCommandLine.render(
-            PiLaunchOptions(),
-            sessionId = "pilaunch-0a1b2c3d",
-            name = "Pi 1"
+    fun `chooses the identity Pi stores the conversation under`() {
+        assertEquals(
+            "pi --session-id pilaunch-0a1b2c3d --no-themes",
+            PiCommandLine.render(PiLaunchOptions(), sessionId = "pilaunch-0a1b2c3d")
         )
+    }
 
-        assertEquals("pi --session-id pilaunch-0a1b2c3d --name \"Pi 1\" --no-themes", command)
+    /** Pi shows its session name in the footer; a session started here must look the same. */
+    @Test
+    fun `names nothing, so the session looks like one started in a terminal`() {
+        assertFalse(PiCommandLine.render(PiLaunchOptions(), sessionId = "pilaunch-a").contains("--name"))
     }
 
     @Test
     fun `omits the identity when this Pi cannot be given one`() {
         assertEquals("pi --no-themes", PiCommandLine.render(PiLaunchOptions(), sessionId = null))
-    }
-
-    /** The name is a tab label and the command is typed into a shell. */
-    @Test
-    fun `strips shell-active characters from the name`() {
-        val command = PiCommandLine.render(PiLaunchOptions(), name = "a\"b`c\$d;e|f")
-
-        assertEquals("pi --name \"abcdef\" --no-themes", command)
-    }
-
-    @Test
-    fun `omits a name that is nothing but unsafe characters`() {
-        assertEquals("pi --no-themes", PiCommandLine.render(PiLaunchOptions(), name = "\"`\$"))
-        assertEquals("pi --no-themes", PiCommandLine.render(PiLaunchOptions(), name = "   "))
     }
 
     @Test

@@ -46,8 +46,8 @@ class PiSessionService(private val project: Project) : Disposable {
     private val registry = PiSessionRegistry(
         workingDirectory = { project.basePath ?: System.getProperty("user.home") },
         // Settings are a snapshot taken when a session starts.
-        startCommand = { tabName, id, extensionPath ->
-            PiCommandLine.render(piLaunchOptions(), extensionPath, sessionId = id, name = tabName)
+        startCommand = { _, id, extensionPath ->
+            PiCommandLine.render(piLaunchOptions(), extensionPath, sessionId = id)
         },
         resumeCommand = { id, extensionPath ->
             PiCommandLine.resume(piLaunchOptions(), id, extensionPath)

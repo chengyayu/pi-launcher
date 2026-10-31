@@ -25,18 +25,18 @@ object PiCommandLine {
     /** Opens the conversation Pi already stores under that identity. */
     private const val SESSION = "--session"
 
-    /** The name Pi's own session picker shows for this conversation. */
-    private const val NAME = "--name"
-
     /**
-     * Starts a new Pi Session, optionally with an identity of the plugin's choosing
-     * and a name Pi can show.
+     * Starts a new Pi Session, optionally with an identity of the plugin's choosing.
+     *
+     * No `--name`: Pi shows that name in its footer, so a session started from the IDE
+     * would read `folder • Pi 1` where the same session started in a terminal reads just
+     * `folder`. The label the user sees is the IDE's - the tab - so nothing is lost by
+     * leaving Pi's own naming alone.
      */
     fun render(
         options: PiLaunchOptions,
         extensionPath: String? = null,
-        sessionId: String? = null,
-        name: String? = null
+        sessionId: String? = null
     ): String {
         val parts = mutableListOf(command(options))
 
@@ -48,11 +48,6 @@ object PiCommandLine {
         sessionId?.takeIf { it.isNotBlank() }?.let {
             parts += SESSION_ID
             parts += it
-        }
-
-        name?.let(::shellSafe)?.takeIf { it.isNotEmpty() }?.let {
-            parts += NAME
-            parts += quote(it)
         }
 
         options.model?.takeIf { it.isNotBlank() }?.let {
@@ -104,16 +99,4 @@ object PiCommandLine {
      * PowerShell and cmd alike.
      */
     private fun quote(path: String): String = "\"$path\""
-
-    /**
-     * The session name is the user's tab label, and it ends up inside a command typed
-     * into a shell. Shell-active characters are removed rather than escaped: escaping
-     * would have to be right for POSIX shells, PowerShell and cmd at once, and a
-     * dropped quote is invisible where an unescaped one would run something.
-     */
-    private fun shellSafe(name: String): String = name.filterNot { it in UNSAFE_NAME_CHARACTERS }.trim()
-
-    private val UNSAFE_NAME_CHARACTERS = setOf(
-        '"', '\'', '`', '$', '\\', ';', '|', '&', '<', '>', '\n', '\r', '\t'
-    )
 }
