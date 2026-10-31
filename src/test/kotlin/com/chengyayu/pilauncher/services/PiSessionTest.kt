@@ -298,30 +298,12 @@ class PiSessionTest {
         override fun read(): PiSessionReport? = PiSessionReport(status, identity)
     }
 
-    private class FakeTerminal : PiTerminal {
-        data class Sent(val text: String, val submitted: Boolean)
-
-        val sent = mutableListOf<Sent>()
-        var commandRunning: Boolean? = true
-
-        override fun isForegroundCommandRunning(): Boolean? = commandRunning
-
-        override fun onFilesDropped(listener: (List<String>) -> Unit) = Unit
-
-        override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
-            sent += Sent(text, submit)
-            onDelivered()
-        }
-    }
-
     /**
      * A tab in a Terminal window that was never opened: there is no pty for a
      * while, so a send is refused and only the pty's arrival delivers anything -
      * which is what the adapter's own retry loop ends up doing.
      */
     private class GatedTerminal : PiTerminal {
-        data class Sent(val text: String, val submitted: Boolean)
-
         val sent = mutableListOf<Sent>()
 
         /** Every send the session tried, refused ones included. */

@@ -571,31 +571,6 @@ class PiSessionRegistryTest {
         }
     }
 
-    private class FakeTerminal : PiTerminal {
-        data class Sent(val text: String, val submitted: Boolean)
-
-        val sent = mutableListOf<Sent>()
-        var commandRunning: Boolean? = true
-
-        private var dropListener: ((List<String>) -> Unit)? = null
-
-        override fun isForegroundCommandRunning(): Boolean? = commandRunning
-
-        override fun onFilesDropped(listener: (List<String>) -> Unit) {
-            dropListener = listener
-        }
-
-        override fun send(text: String, submit: Boolean, onDelivered: () -> Unit) {
-            sent += Sent(text, submit)
-            onDelivered()
-        }
-
-        /** Simulates the user dropping files onto the terminal. */
-        fun drop(paths: List<String>) {
-            dropListener?.invoke(paths)
-        }
-    }
-
     private class FakeNotifier : PiNotifier {
         val errors = mutableListOf<String>()
 
