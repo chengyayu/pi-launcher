@@ -6,8 +6,8 @@
 |---|---|
 | Plugin ID | `com.chengyayu.pi-launcher` |
 | Marketplace ID | [34851](https://plugins.jetbrains.com/plugin/34851-pi-launcher) |
-| 已发布版本 | `0.1.0`、`0.2.0`、`0.2.1`、`0.3.0`、`0.3.1`、`0.4.2`、`0.4.3` |
-| 审核状态 | 0.1.0 – 0.3.1 为 `approve: true` / `listed: true`；0.4.2 与 0.4.3 已上传，待审 |
+| 已发布版本 | `0.1.0`、`0.2.0`、`0.2.1`、`0.3.0`、`0.3.1`、`0.4.2`、`0.4.3`、`0.4.4` |
+| 审核状态 | 0.1.0 – 0.3.1 为 `approve: true` / `listed: true`；0.4.2 起已上传，待审 |
 | Pricing | Free，MIT |
 | Vendor | chengyayu（Non-trader） |
 
@@ -174,7 +174,6 @@ version` 按预期报红（tag 与 0.4.3 不符），Test/Build/Publish 都没�
 所以这条红 run 留在 Actions 历史里是验证痕迹，不是故障。
 
 ## CI 工具链
-
 | 项 | 值 |
 |---|---|
 | runner | `ubuntu-24.04`（固定，不用 `ubuntu-latest`） |
@@ -194,3 +193,18 @@ version` 按预期报红（tag 与 0.4.3 不符），Test/Build/Publish 都没�
 → Test → Build plugin → Upload artifact 全绿，只有 `Publish plugin` 报
 `The com.chengyayu.pi-launcher plugin already contains version 0.4.3`。这是预期结果：
 `workflow_dispatch` 不改版本号重跑必然重复上传（见上文 0.1.0），同时也再次证明 token 有效。
+
+### 0.4.4
+
+第一次走完**全自动**链路：建 Release 后 `publish.yml` 自己起来了（run 41184254454，
+`release: published`），Check tag → Test → Build → Upload → `Publish plugin` 全 success，
+`publishPlugin` 为 `BUILD SUCCESSFUL`。这就是 `published` 触发器、`ubuntu-24.04` 和新版本
+action 的端到端验证。
+
+0.4.3 时 plugin-verifier（1.411）对 `IU-263.7307.112` 报的那 1 条废弃 API
+（`FileEditorManager.openFileEditor`）已在 0.4.4 修掉：改为 `OpenFileDescriptor`。对
+`IC-252.28539.149` 与 `IU-263.7307.112` 都是 Compatible，无 deprecated 报告。
+注意 2026.3 把**所有**阻塞式 `FileEditorManager.openFile*` 都标废弃，官方替代
+（`requestOpenEditor` / `FileEditorOpenRequest`）在 243 基线不存在，且 243 的
+`requestOpenFile(VirtualFile)` 返回 `void` 而 263 返回 `CompletableFuture`，所以那条
+"改用非阻塞版"的建议在 sinceBuild 243 下不可行。
