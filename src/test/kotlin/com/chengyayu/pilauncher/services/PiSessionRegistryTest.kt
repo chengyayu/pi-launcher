@@ -3,11 +3,12 @@ package com.chengyayu.pilauncher.services
 import com.intellij.openapi.Disposable
 import com.chengyayu.pilauncher.infrastructure.PiNotifier
 import com.chengyayu.pilauncher.infrastructure.PiTerminal
-import com.chengyayu.pilauncher.infrastructure.PiTerminalProvider
+import com.chengyayu.pilauncher.infrastructure.PiSessionHost
 import com.chengyayu.pilauncher.util.PiScheduler
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -17,7 +18,7 @@ import kotlin.test.assertTrue
  */
 class PiSessionRegistryTest {
 
-    private val provider = FakeTerminalProvider()
+    private val provider = FakeSessionHost()
     private val notifier = FakeNotifier()
     private val counts = CopyOnWriteArrayList<Int>()
 
@@ -25,6 +26,10 @@ class PiSessionRegistryTest {
     private var tick = 0L
 
     private val polls = mutableListOf<() -> Unit>()
+
+    private val startCommands = CopyOnWriteArrayList<StartRequest>()
+
+    private val resumeCommands = CopyOnWriteArrayList<StartRequest>()
 
     private val pollScheduler = PiScheduler { _, repeat, action ->
         if (repeat) polls += action else action()
@@ -34,16 +39,30 @@ class PiSessionRegistryTest {
     /** One call = one observation per session; two in a row register an exit. */
     private fun runPolls() = polls.forEach { it() }
 
-    private fun newRegistry() = PiSessionRegistry(
+    private fun newRegistry(
+        ids: () -> String? = { null },
+        store: PiSessionStore = PiSessionStore.inMemory()
+    ) = PiSessionRegistry(
         workingDirectory = { "/work" },
-        startCommand = { _ -> "pi --no-themes" },
-        terminals = provider,
+        startCommand = { tabName, id, extensionPath ->
+            startCommands += StartRequest(tabName, id, extensionPath)
+            "pi --no-themes"
+        },
+        resumeCommand = { id, extensionPath ->
+            resumeCommands += StartRequest("", id, extensionPath)
+            "pi --session $id"
+        },
+        newSessionId = ids,
+        store = store,
+        host = provider,
         notifier = notifier,
         publishCount = { counts += it },
         commandDispatcher = PiCommandDispatcher(settleMillis = 0, scheduler = ImmediateScheduler),
         scheduler = pollScheduler,
         clock = { tick += 10_000; tick }
     )
+
+    private data class StartRequest(val tabName: String, val id: String?, val extensionPath: String?)
 
     @Test
     fun `launch with no sessions creates a tab and starts pi`() {
@@ -143,7 +162,7 @@ class PiSessionRegistryTest {
 
     @Test
     fun `existing tabs outside the registry also block their number`() {
-        provider.existingTabNames = setOf("Pi 1", "Local")
+        provider.otherNamesOnScreen = setOf("Pi 1", "Local")
 
         newRegistry().use {
             it.launch()
@@ -308,6 +327,111 @@ class PiSessionRegistryTest {
         assertEquals(0, provider.focusCount)
     }
 
+    // ---- identity and parked sessions (docs/adr/0006) ----------------------
+
+    @Test
+    fun `a new session is given the identity it starts with`() {
+        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+            registry.launch()
+
+            assertEquals("pilaunch-1234abcd", startCommands.single().id, "Pi is told the identity")
+            assertEquals("pilaunch-1234abcd", registry.readouts.single().id)
+        }
+    }
+
+    @Test
+    fun `a Pi without identity support starts an unidentified session`() {
+        newRegistry(ids = { null }).use { registry ->
+            registry.launch()
+
+            assertNull(startCommands.single().id, "no flag may be passed")
+            assertNull(registry.readouts.single().id)
+        }
+    }
+
+    @Test
+    fun `closing a Host parks the conversation instead of forgetting it`() {
+        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+            registry.launch()
+            provider.close("Pi 1")
+
+            assertEquals(0, registry.runningCount, "the run is over")
+            val parked = registry.readouts.single()
+            assertFalse(parked.running, "the session is still there, without a Host")
+            assertEquals("Pi 1", parked.tabName)
+            assertEquals("pilaunch-1234abcd", parked.id)
+        }
+    }
+
+    @Test
+    fun `a parked session is reopened on the conversation Pi stores`() {
+        val store = PiSessionStore.inMemory()
+        newRegistry(ids = { "pilaunch-1234abcd" }, store = store).use { registry ->
+            registry.launch()
+            provider.close("Pi 1")
+
+            registry.resume("pilaunch-1234abcd")
+
+            assertEquals(1, registry.runningCount)
+            assertEquals("pilaunch-1234abcd", resumeCommands.single().id)
+            assertEquals(
+                "pi --session pilaunch-1234abcd",
+                provider.created.last().terminal.sent.single().text,
+                "the resumed run continues the conversation, it does not start a new one"
+            )
+            assertTrue(registry.readouts.none { !it.running }, "the session is live again")
+        }
+    }
+
+    @Test
+    fun `resuming a running session only focuses it`() {
+        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+            registry.launch()
+            registry.resume("pilaunch-1234abcd")
+
+            assertEquals(1, provider.created.size, "a live session is not reopened")
+            assertEquals(1, provider.focusCount)
+        }
+    }
+
+    @Test
+    fun `parked sessions are remembered across registries`() {
+        val store = PiSessionStore.inMemory()
+        newRegistry(ids = { "pilaunch-1234abcd" }, store = store).use { first ->
+            first.launch()
+            provider.close("Pi 1")
+        }
+
+        newRegistry(ids = { "pilaunch-1234abcd" }, store = store).use { second ->
+            assertEquals(listOf("Pi 1"), second.readouts.map { it.tabName })
+            assertFalse(second.readouts.single().running)
+        }
+    }
+
+    @Test
+    fun `renaming a parked session changes only its label`() {
+        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+            registry.launch()
+            provider.close("Pi 1")
+
+            registry.renameParked("pilaunch-1234abcd", "api work")
+
+            val parked = registry.readouts.single()
+            assertEquals("api work", parked.tabName)
+            assertEquals("pilaunch-1234abcd", parked.id, "the identity is not the label")
+        }
+    }
+
+    @Test
+    fun `a session without an identity is not parked`() {
+        newRegistry(ids = { null }).use { registry ->
+            registry.launch()
+            provider.close("Pi 1")
+
+            assertTrue(registry.readouts.isEmpty(), "nothing to reopen")
+        }
+    }
+
     // ---- fakes -------------------------------------------------------------
 
     private object NoopDisposable : Disposable {
@@ -330,19 +454,19 @@ class PiSessionRegistryTest {
             }
     }
 
-    private class FakeTerminalProvider : PiTerminalProvider {
+    private class FakeSessionHost : PiSessionHost {
         val created = mutableListOf<CreatedTab>()
         val closed = mutableListOf<String>()
         var createdWorkingDirectory: String? = null
         var focusCount = 0
         var failOnCreate = false
-        var existingTabNames: Set<String> = emptySet()
+        var otherNamesOnScreen: Set<String> = emptySet()
 
         private var selectionListener: ((String) -> Unit)? = null
         private var closeListener: ((String) -> Unit)? = null
         private var renameListener: ((String, String) -> Unit)? = null
 
-        override fun createTerminalTab(workingDirectory: String, tabName: String): PiTerminal {
+        override fun open(workingDirectory: String, tabName: String): PiTerminal {
             if (failOnCreate) error("terminal unavailable")
             createdWorkingDirectory = workingDirectory
             val terminal = FakeTerminal()
@@ -350,12 +474,12 @@ class PiSessionRegistryTest {
             return terminal
         }
 
-        override fun focusTerminalTab(tabName: String) {
+        override fun focus(tabName: String) {
             focusCount++
         }
 
-        override fun existingTabNames(): Set<String> =
-            existingTabNames + created.map { it.tabName }.toSet() - closed.toSet()
+        override fun shownNames(): Set<String> =
+            otherNamesOnScreen + created.map { it.tabName }.toSet() - closed.toSet()
 
         override fun onTabSelected(listener: (String) -> Unit) {
             selectionListener = listener

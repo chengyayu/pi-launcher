@@ -8,11 +8,11 @@ import com.chengyayu.pilauncher.infrastructure.PiTerminal
 import com.chengyayu.pilauncher.util.PiScheduler
 
 /**
- * One running Pi: a terminal tab hosting a `pi` process, watched until it exits.
+ * One running Pi: a Host showing a `pi` process, watched until it exits.
  *
- * Creation belongs to [PiSessionRegistry]; a session starts with its terminal
- * already attached. An exit is not reported to the user - `/exit` and a crash
- * cannot be told apart - but [onExited] tells the registry to stop counting it.
+ * Creation belongs to [PiSessionRegistry]; a session starts with its Host already
+ * attached. An exit is not reported to the user - `/exit` and a crash cannot be told
+ * apart - but [onExited] tells the registry to stop counting it.
  *
  * Input sent before the start command has reached the terminal is held back: the
  * pty belongs to a plain shell until then, and text typed into it would be run
@@ -20,10 +20,16 @@ import com.chengyayu.pilauncher.util.PiScheduler
  * (`docs/adr/0003`).
  */
 internal class PiSession(
-    /** The tab's display name, as the user sees it. Renaming the tab updates it. */
+    /** The Host's display name, as the user sees it. Renaming the Host updates it. */
     @Volatile
     var tabName: String,
-    val sessionId: String = tabName,
+    /**
+     * Pi's identity for this conversation, or null when this Pi cannot be given one.
+     * It outlives this run; [channelId] does not (`docs/adr/0006`).
+     */
+    val id: String?,
+    /** The status channel's directory name: unique per run, discarded when the run ends. */
+    val channelId: String,
     private val terminal: PiTerminal,
     private val startCommand: String,
     private val statusSource: PiStatusSource? = null,

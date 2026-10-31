@@ -9,13 +9,16 @@ import com.intellij.ui.content.ContentManagerListener
 import java.beans.PropertyChangeListener
 
 /**
- * [PiTerminalProvider] backed by the IDE's Terminal tool window.
+ * The [PiSessionHost] backed by the IDE's Terminal tool window.
  *
  * Tabs are created through the engine-agnostic `createShellWidget` and remembered
  * by name, so several Pi tabs can coexist and be focused independently; the
  * reflective access lives in [ReflectiveTerminal] (`docs/adr/0002`).
+ *
+ * Everything Content-specific lives here on purpose: an editor-tab Host
+ * (`docs/adr/0006`) shares none of it, and the registry must not have to know.
  */
-class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
+class ToolWindowSessionHost(private val project: Project) : PiSessionHost {
 
     private val tabs = mutableMapOf<String, Content>()
 
@@ -36,7 +39,7 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
         renameListener = listener
     }
 
-    override fun createTerminalTab(workingDirectory: String, tabName: String): PiTerminal {
+    override fun open(workingDirectory: String, tabName: String): PiTerminal {
         val widget = createShellWidget(workingDirectory, tabName)
         if (widget == null) error("the Terminal tool window created no widget for $tabName")
 
@@ -48,11 +51,11 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
                 content.addPropertyChangeListener(renameReporter)
             }
 
-        focusTerminalTab(tabName)
+        focus(tabName)
         return ReflectiveTerminal(widget)
     }
 
-    override fun focusTerminalTab(tabName: String) {
+    override fun focus(tabName: String) {
         installTabListeners()
         val toolWindow = toolWindow() ?: return
         val content = tabs[tabName] ?: return
@@ -63,7 +66,7 @@ class IdeTerminalProvider(private val project: Project) : PiTerminalProvider {
         }
     }
 
-    override fun existingTabNames(): Set<String> =
+    override fun shownNames(): Set<String> =
         contentManager()?.contents?.map { it.displayName }?.toSet() ?: emptySet()
 
     /**

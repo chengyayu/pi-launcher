@@ -7,9 +7,14 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.chengyayu.pilauncher.domain.PiCommandLine
+import com.chengyayu.pilauncher.domain.PiSessionId
 import com.chengyayu.pilauncher.domain.PiSessionReadout
 import com.chengyayu.pilauncher.infrastructure.IdePiNotifier
-import com.chengyayu.pilauncher.infrastructure.IdeTerminalProvider
+import com.chengyayu.pilauncher.infrastructure.EditorTabSessionHost
+import com.chengyayu.pilauncher.infrastructure.PiHostChoice
+import com.chengyayu.pilauncher.infrastructure.ToolWindowSessionHost
+import com.chengyayu.pilauncher.infrastructure.PiSessionHost
+import com.chengyayu.pilauncher.infrastructure.PiSessionIdProbe
 import com.chengyayu.pilauncher.infrastructure.PiStatusExtension
 import com.chengyayu.pilauncher.infrastructure.projectKey
 import java.nio.file.Path
@@ -34,29 +39,50 @@ class PiSessionService(private val project: Project) : Disposable {
         probeCache = ApplicationPiStatusProbeCache.getInstance()
     )
 
-    init {
-        // PiFileWatcher subscribes to the count topic in its initializer, and
-        // project services are created lazily, so it must be touched here.
-        PiFileWatcher.getInstance(project)
-
-        // Finding out whether Pi can host the status extension costs a subprocess,
-        // so it happens in the background. A session launched before the answer
-        // arrives simply reports Inferred Status.
-        ApplicationManager.getApplication().executeOnPooledThread { statusChannels.probe() }
-    }
+    /** Whether a Pi Session can be given an identity (`docs/adr/0006`). */
+    private val sessionIds = PiSessionIdProbe(
+        piCommand = { piCommand() },
+        cache = ApplicationPiSessionIdProbeCache.getInstance()
+    )
 
     private val registry = PiSessionRegistry(
         workingDirectory = { project.basePath ?: System.getProperty("user.home") },
         // Settings are a snapshot taken when a session starts.
-        startCommand = { extensionPath ->
-            PiCommandLine.render(piLaunchOptions(), extensionPath)
+        startCommand = { tabName, id, extensionPath ->
+            PiCommandLine.render(piLaunchOptions(), extensionPath, sessionId = id, name = tabName)
         },
-        terminals = IdeTerminalProvider(project),
+        resumeCommand = { id, extensionPath ->
+            PiCommandLine.resume(piLaunchOptions(), id, extensionPath)
+        },
+        newSessionId = { if (sessionIds.isSupported()) PiSessionId.new() else null },
+        store = PersistentPiSessionStore.getInstance(project),
+        host = sessionHost(project),
         notifier = IdePiNotifier(project),
         publishCount = PiSessionListener.publisherFor(project),
         publishReadouts = PiSessionStatusListener.publisherFor(project),
         statusChannels = statusChannels
     )
+
+    init {
+        // PiFileWatcher subscribes to the count topic in its initializer, and
+        // project services are created lazily, so it must be touched here.
+        PiFileWatcher.getInstance(project)
+
+        // Both answers cost a subprocess, so they are asked in the background. A
+        // session launched before they arrive simply reports Inferred Status and has
+        // no identity to come back to.
+        ApplicationManager.getApplication().executeOnPooledThread {
+            statusChannels.probe()
+            sessionIds.probe()
+        }
+    }
+
+    /**
+     * The Terminal tool window until the editor tab has been proven on a real IDE; the
+     * switch and one of these two Hosts disappear together (`docs/adr/0007`).
+     */
+    private fun sessionHost(project: Project): PiSessionHost =
+        if (PiHostChoice.editorRequested()) EditorTabSessionHost(project) else ToolWindowSessionHost(project)
 
     private fun piLaunchOptions() = PiSettings.getInstance().state.toLaunchOptions()
 
@@ -64,7 +90,7 @@ class PiSessionService(private val project: Project) : Disposable {
 
     val runningCount: Int get() = registry.runningCount
 
-    /** Every live session, for the status bar and the Session Dashboard. */
+    /** Every session, parked ones included, for the status bar and the Session Dashboard. */
     val readouts: List<PiSessionReadout> get() = registry.readouts
 
     fun isRunning(): Boolean = registry.isRunning()
@@ -72,6 +98,12 @@ class PiSessionService(private val project: Project) : Disposable {
     fun launch() = registry.launch()
 
     fun newSession() = registry.newSession()
+
+    /** Reopen a parked session on the conversation Pi still stores for it. */
+    fun resume(id: String) = registry.resume(id)
+
+    /** Rename a parked session; a live one is renamed through its Host. */
+    fun renameParked(id: String, name: String) = registry.renameParked(id, name)
 
     fun submitText(text: String) = registry.submitText(text)
 

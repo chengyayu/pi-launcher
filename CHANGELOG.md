@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- **A Pi Session now survives its tab.** Every session is started under an identity the
+  plugin chooses (`--session-id pilaunch-…`), so closing its tab ends the run, not the
+  conversation. The Session Dashboard lists closed sessions as `not running` and
+  reopens one with `pi --session <id>`, continuing from the last thing Pi persisted.
+  Closed sessions are remembered per project across IDE restarts
+  (`docs/adr/0006`).
+- **The dashboard can reopen and rename a closed session.** Renaming a closed session
+  changes the plugin's label only; Pi's own session name is never rewritten.
+
+### Changed
+
+- **A session with no Host is not a state of Pi.** It reads `not running` rather than
+  `no status from Pi`, and the status bar counts only running sessions — a closed
+  session has no Session Status to report and is not counted as `unknown`.
+- **The plugin asks Pi whether it accepts `--session-id`,** the same way it asks about
+  `--extension`. An older Pi starts an unidentified session instead of failing, and
+  that session simply cannot be reopened.
+
+### Fixed
+
+- **Closing a renamed tab left a dead session in the registry.** Sessions are now
+  removed by identity rather than by their current label.
+
 ## 0.3.1
 
 ### Fixed

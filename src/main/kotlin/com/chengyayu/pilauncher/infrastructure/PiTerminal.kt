@@ -1,6 +1,12 @@
 package com.chengyayu.pilauncher.infrastructure
 
-/** One terminal tab, as far as a Pi Session cares about it. */
+/**
+ * One terminal on screen, as far as a Pi Session cares about it.
+ *
+ * It is what a [PiSessionHost] hands back when it opens a Host, and it outlives nothing:
+ * when the Host is closed the terminal is gone, while the session it showed may not be
+ * (`docs/adr/0006`).
+ */
 interface PiTerminal {
 
     /**
@@ -23,29 +29,46 @@ interface PiTerminal {
     fun isForegroundCommandRunning(): Boolean?
 }
 
-/** Creates and navigates the Terminal tool window tabs that Pi Sessions run in. */
-interface PiTerminalProvider {
+/**
+ * Where Pi Sessions are shown: exactly one Host per running session.
+ *
+ * A Host is a place on screen - a Terminal tool window tab today, an editor tab next
+ * (`docs/adr/0006`) - and nothing more. It knows nothing about identities, statuses or
+ * parked sessions, so a second Host is a new implementation of this interface and not
+ * a change to the registry.
+ *
+ * Two things here are about Hosts rather than sessions, and the difference matters:
+ * a Host can outlive its run (the tab stays open after Pi exits) and a session can
+ * outlive its Host (it gets parked and reopened later).
+ */
+interface PiSessionHost {
 
-    /** Open a tab named [tabName] rooted at [workingDirectory] and focus it. */
-    fun createTerminalTab(workingDirectory: String, tabName: String): PiTerminal
+    /** Show a terminal rooted at [workingDirectory] called [name], and focus it. */
+    fun open(workingDirectory: String, name: String): PiTerminal
 
-    /** Bring the tab named [tabName] to the front, if it still exists. */
-    fun focusTerminalTab(tabName: String)
-
-    /** Display names of the tabs currently present in the Terminal window. */
-    fun existingTabNames(): Set<String>
-
-    /** Called with the tab name whenever the user selects a tab. */
-    fun onTabSelected(listener: (String) -> Unit)
+    /** Bring the Host called [name] to the front, if it still exists. */
+    fun focus(name: String)
 
     /**
-     * Called with the old and the new name whenever the user renames a tab.
+     * The names of every Host currently on screen, including Hosts whose Pi has
+     * already exited.
      *
-     * The tab's name is the user's label for a Pi Session and outranks whatever the
+     * Duplicate names would make focusing - and therefore Send to Pi - ambiguous, so
+     * new sessions are named around this set rather than around the running ones.
+     */
+    fun shownNames(): Set<String>
+
+    /** Called with the name whenever the user selects a Host. */
+    fun onTabSelected(listener: (name: String) -> Unit)
+
+    /**
+     * Called with the old and the new name whenever the user renames a Host.
+     *
+     * The Host's name is the user's label for a Pi Session and outranks whatever the
      * plugin called it at creation, so renames have to reach the registry.
      */
     fun onTabRenamed(listener: (oldName: String, newName: String) -> Unit)
 
-    /** Called with the tab name whenever a tab is closed. */
-    fun onTabClosed(listener: (String) -> Unit)
+    /** Called with the name whenever a Host is closed. */
+    fun onTabClosed(listener: (name: String) -> Unit)
 }

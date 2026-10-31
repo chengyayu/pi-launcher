@@ -10,7 +10,8 @@ This is deliberate, and each part was forced by a bug found in the sandbox IDE:
 
 - `createLocalShellWidget` (the API the plugin used first) delegates to
   `createShellWidget` and then casts the result to a JediTerm `ShellTerminalWidget`.
-  On the block terminal engine - the default in 2024.3+ - that cast fails, so the
+  On the block terminal engine - which 2024.3 uses for some shells and users, switched
+  by the `terminal.new.ui` registry key, not everywhere - that cast fails, so the
   second Pi tab could never be created.
 - The classic engine returns a **package-private** bridge class
   (`JBTerminalWidget$TerminalWidgetBridge`). Its methods are public but

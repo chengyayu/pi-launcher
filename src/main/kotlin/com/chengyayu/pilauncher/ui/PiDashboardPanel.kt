@@ -5,6 +5,7 @@ import com.chengyayu.pilauncher.services.PiSessionService
 import com.chengyayu.pilauncher.services.PiSessionStatusListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
@@ -19,16 +20,20 @@ import javax.swing.JPanel
 import javax.swing.ListSelectionModel
 
 /**
- * The Session Dashboard: every running Pi Session with the Session Status Pi reports
- * for it (`docs/adr/0005`).
+ * The Session Dashboard: every Pi Session, with the Session Status Pi reports for the
+ * ones that are running (`docs/adr/0005`).
  *
- * It renders the state it is given and never invents one - a session without a
- * report reads "no status from Pi", which is exactly what the user needs to know when
- * the Status Source is unavailable.
+ * It renders the state it is given and never invents one - a session without a report
+ * reads "no status from Pi", and a session with no Host reads "not running", which are
+ * three different things and stay three different things.
  *
- * Deliberately read-only apart from two safe actions: showing a session in the
- * Terminal window, and starting a new one. Anything that could disturb a running
- * session belongs in the terminal it runs in, where the user can see what happens.
+ * It is also the one surface that does not depend on a Host, which is why a parked
+ * session is reopened from here (`docs/adr/0006`).
+ *
+ * Deliberately quiet: showing a session in its Host, reopening a parked one, renaming
+ * a parked one, and starting a new one. Anything that could disturb a *running* session
+ * - interrupting it, killing its run - belongs in the Host it runs in, where the user
+ * can see what happens.
  */
 internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
@@ -37,6 +42,8 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
     private val cards = CardLayout()
     private val content = JPanel(cards)
     private val showInTerminal = JButton("Show in Terminal")
+    private val resume = JButton("Resume")
+    private val rename = JButton("Rename…")
 
     private val service: PiSessionService get() = PiSessionService.getInstance(project)
 
@@ -55,24 +62,28 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
         table.columnModel.getColumn(COLUMN_DETAIL).preferredWidth = JBUI.scale(320)
 
         table.addMouseListener(object : MouseAdapter() {
-            /** Clicking a session is a request to look at it, so it goes straight there. */
+            /** Clicking a running session is a request to look at it, so it goes straight there. */
             override fun mouseClicked(event: MouseEvent) {
-                if (event.clickCount == 1 && table.rowAtPoint(event.point) >= 0) focusSelected()
+                if (event.clickCount != 1 || table.rowAtPoint(event.point) < 0) return
+                if (selected()?.running == true) focusSelected()
             }
         })
-        table.selectionModel.addListSelectionListener { showInTerminal.isEnabled = selectedTabName() != null }
+        table.selectionModel.addListSelectionListener { updateActions() }
 
         content.add(emptyState(), CARD_EMPTY)
         content.add(JBScrollPane(table), CARD_TABLE)
 
-        showInTerminal.isEnabled = false
         showInTerminal.addActionListener { focusSelected() }
+        resume.addActionListener { selected()?.id?.let(service::resume) }
+        rename.addActionListener { renameSelected() }
 
         val newSession = JButton("New Pi Session")
         newSession.addActionListener { service.newSession() }
 
         val actions = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), JBUI.scale(6)))
         actions.add(showInTerminal)
+        actions.add(resume)
+        actions.add(rename)
         actions.add(newSession)
 
         add(content, BorderLayout.CENTER)
@@ -83,25 +94,49 @@ internal class PiDashboardPanel(private val project: Project) : JPanel(BorderLay
 
     /** Only ever called on the EDT: the topic publishes through `invokeLater`. */
     private fun render(sessions: List<PiSessionReadout>) {
-        val selected = selectedTabName()
+        val selected = selected()?.let(::keyOf)
         model.setSessions(sessions)
         restoreSelection(selected)
         cards.show(content, if (sessions.isEmpty()) CARD_EMPTY else CARD_TABLE)
-        showInTerminal.isEnabled = selectedTabName() != null
+        updateActions()
     }
 
     /** A status update must not steal the user's selection. */
-    private fun restoreSelection(tabName: String?) {
+    private fun restoreSelection(key: String?) {
+        if (key == null) return
         val row = (0 until model.rowCount)
-            .firstOrNull { model.sessionAt(it)?.tabName == tabName } ?: return
+            .firstOrNull { model.sessionAt(it)?.let(::keyOf) == key } ?: return
         table.setRowSelectionInterval(row, row)
     }
 
-    private fun selectedTabName(): String? =
-        model.sessionAt(table.selectedRow)?.tabName
+    private fun selected(): PiSessionReadout? = model.sessionAt(table.selectedRow)
+
+    private fun keyOf(readout: PiSessionReadout): String = readout.id ?: readout.tabName
+
+    private fun updateActions() {
+        val session = selected()
+        showInTerminal.isEnabled = session?.running == true
+        // Reopening and renaming a parked session are the two actions that only exist here.
+        resume.isEnabled = session != null && !session.running && session.id != null
+        rename.isEnabled = session != null && !session.running && session.id != null
+    }
 
     private fun focusSelected() {
-        selectedTabName()?.let { service.focus(it) }
+        selected()?.takeIf { it.running }?.let { service.focus(it.tabName) }
+    }
+
+    private fun renameSelected() {
+        val session = selected()?.takeIf { !it.running } ?: return
+        val name = Messages.showInputDialog(
+            project,
+            "Name for this Pi session.",
+            "Rename Pi Session",
+            null,
+            session.tabName,
+            null
+        ) ?: return
+
+        session.id?.let { service.renameParked(it, name) }
     }
 
     private fun emptyState(): JPanel {

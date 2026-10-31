@@ -5,12 +5,16 @@ JetBrains 插件，用于在 IDE 的 Terminal 工具窗口中启动和驱动 [Pi
 ## Language
 
 **Pi Session**:
-一个 Pi tab 内运行的一个 `pi` 进程及其被插件跟踪的生命周期。一个 project 可以同时有多个 Pi Session。
+一次与 pi 的对话：pi 自己的会话文件、正在驱动它的进程（若在运行），以及插件为它保留的身份。一个 project 可以同时有多个 Pi Session；界面关掉只是这次运行结束，对话还在。
 _Avoid_: Pi 实例、pi 进程（口语场景）、Pi tab（指逻辑实例时）
 
+**Session Host**:
+承载一个 Pi Session 的界面容器，一个 Session 至多有一个 Host。换 Host 不改变 Session。
+_Avoid_: Pi tab（指逻辑实例时）、窗口
+
 **Terminal Tab**:
-Terminal 工具窗口中的一个 tab 页，是 Pi Session 的宿主 UI。一个 Terminal Tab 至多承载一个 Pi Session。关闭 tab 即终结其上的 Pi Session。
-_Avoid_: 终端窗口、console
+Terminal 工具窗口中的一个分页，是 Session Host 的一种。关闭它结束的是这次运行，不是这次对话。
+_Avoid_: 终端窗口、console、Pi Session 的宿主（旧定义）
 
 **Terminal Engine**:
 JetBrains 终端的两种实现：classic（JediTerm）与 block（2024.3+ 默认）。插件通过引擎无关的 API 同时支持两者。

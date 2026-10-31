@@ -50,6 +50,8 @@ class PiSessionTest {
         val pollScheduler = scheduler ?: ManualScheduler().also { manual = it }
         return PiSession(
             tabName = tabName,
+            id = null,
+            channelId = tabName,
             terminal = terminal,
             startCommand = startCommand,
             statusSource = statusSource,

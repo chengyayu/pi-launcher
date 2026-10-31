@@ -20,6 +20,7 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 - **Live session status** — The status bar shows what Pi is doing (`working`, `blocked`, `done`, `error`, `idle`), not how many tabs happen to be open
 - **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
 - **Rename a tab, rename the session** — The dashboard and the tooltip use the tab's display name, so `Pi 1` renamed to `api work` is `api work` everywhere
+- **Close the panel, keep the conversation** — every session is started under an identity of the plugin's own choosing (`--session-id`), so closing its tab ends the run, not the work: the dashboard lists it as `not running` and reopens it on Pi's own session file
 - **Model configuration** — Pick model and thinking level from `~/.pi/agent/models.json`
 
 All sessions share the same settings; the command line is a snapshot taken when a session starts.
@@ -38,7 +39,9 @@ Pi reports its own execution state, and the plugin shows it rather than guessing
 
 A session Pi has not reported on reads **`no status from Pi`** — never `idle`. Not
 every Pi build can be reported on, and a plugin that cannot see a state should say
-so instead of inventing one.
+so instead of inventing one. A session whose tab was closed reads **`not running`**:
+that is none of Pi's states, because nothing is running and whatever it last said
+belongs to the run that is over.
 
 The status arrives through a small extension the plugin loads into Pi
 (`--extension`, see `docs/adr/0005`), because Pi's own status protocol is an OSC
@@ -47,8 +50,14 @@ whether it accepts the flag before using it, so an older Pi keeps working and si
 reports no status.
 
 Click the status bar entry to open the **Session Dashboard**; **Alt+click** starts a
-new session without leaving what is on screen. The dashboard is read-only apart from
-two safe actions: show a session in the Terminal window, or start another one.
+new session without leaving what is on screen. Closing a session's tab does not lose
+the conversation: it keeps the identity Pi was started under, and the dashboard
+reopens that session with `pi --session <id>`, continuing from the last thing Pi
+persisted — not from the process that is gone.
+
+The dashboard does that and nothing that could disturb a running session: show one in
+the Terminal window, reopen a closed one, rename a closed one, or start another. The
+status bar only counts what is running.
 
 ## Silent by design
 
@@ -157,12 +166,14 @@ src/main/kotlin/com/chengyayu/pilauncher/
 │   ├── PiCommandLine.kt           # Renders options into the CLI command
 │   ├── PiFileReference.kt         # @path#L10-25 references
 │   ├── PiStatus.kt                # Session Status: a state, a message, an activity
+│   ├── PiSessionId.kt              # The identity a Pi Session is started under
 │   ├── PiStatusReport.kt          # Decodes what the Pi-side extension writes
 │   ├── PiStatusReadout.kt         # Wording shared by the status bar and dashboard
 │   └── PiModel.kt                 # Model advertised by the Pi CLI
 ├── infrastructure/                # Adapters to the IDE and the filesystem
-│   ├── PiTerminal.kt              # Terminal interfaces (fakeable)
-│   ├── IdeTerminalProvider.kt     # Reflective Terminal tool window access
+│   ├── PiTerminal.kt              # Terminal + Session Host interfaces (fakeable)
+│   ├── ToolWindowSessionHost.kt   # Reflective Terminal tool window access
+│   ├── PiSessionIdProbe.kt        # Asks Pi whether it accepts --session-id
 │   ├── PiStatusChannel.kt         # Per-session status source (fakeable)
 │   ├── PiStatusExtension.kt       # Hosts the Pi-side extension, reads its reports
 │   ├── PiModelRepository.kt       # Reads ~/.pi/agent/models.json
@@ -173,6 +184,8 @@ src/main/kotlin/com/chengyayu/pilauncher/
 │   ├── PiSessionService.kt        # Project-facing adapter
 │   ├── PiSessionRegistry.kt       # All running sessions + Active Session pointer
 │   ├── PiSession.kt               # One session's lifecycle
+│   ├── PiSessionStore.kt          # Parked sessions, per project
+│   ├── PersistentPiSessionStore.kt # ...and its state file
 │   ├── PiSessionListener.kt       # Observable running-session count (topic)
 │   ├── PiSessionStatusListener.kt # Observable session snapshot (topic)
 │   ├── PiCommandDispatcher.kt     # Sends the start command

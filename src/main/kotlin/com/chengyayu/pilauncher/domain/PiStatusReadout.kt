@@ -6,11 +6,17 @@ package com.chengyayu.pilauncher.domain
  *
  * [status] is null when Pi has not reported yet or has no Status Source at all;
  * that is not the same as idle and must not be rendered as if it were.
+ *
+ * [running] is false for a session that has no Host: the conversation still exists in
+ * Pi's session file, but nothing is executing, so it has no Session Status and cannot
+ * be guessed at (`docs/adr/0006`).
  */
 data class PiSessionReadout(
     val tabName: String,
     val status: PiStatus?,
-    val active: Boolean
+    val active: Boolean,
+    val running: Boolean = true,
+    val id: String? = null
 )
 
 /**
@@ -27,19 +33,29 @@ object PiStatusReadout {
     const val NO_STATUS = "no status from Pi"
 
     /**
+     * Shown for a Pi Session with no Host. Deliberately none of Pi's own words: Pi is
+     * not running, so it has said nothing about this state.
+     */
+    const val NOT_RUNNING = "not running"
+
+    /**
      * `π all-idle`, or the non-empty states in the order that matters to a user:
      * what needs them first, then what is happening, then what is over.
+     *
+     * Only running sessions count: a session with no Host has no state to report, and
+     * counting it as `unknown` would say something the plugin does not know.
      */
     fun text(readouts: List<PiSessionReadout>): String {
-        if (readouts.isEmpty()) return IDLE_TEXT
+        val running = readouts.filter { it.running }
+        if (running.isEmpty()) return IDLE_TEXT
 
         val states = PiStatus.State.entries
-            .filter { state -> readouts.any { it.status?.state == state } }
+            .filter { state -> running.any { it.status?.state == state } }
             .sortedBy { ORDER.indexOf(it) }
 
-        val parts = states.map { state -> "${readouts.count { it.status?.state == state }} ${label(state)}" }
+        val parts = states.map { state -> "${running.count { it.status?.state == state }} ${label(state)}" }
             .toMutableList()
-        readouts.count { it.status == null }.takeIf { it > 0 }?.let { parts += "$it unknown" }
+        running.count { it.status == null }.takeIf { it > 0 }?.let { parts += "$it unknown" }
 
         return "π " + parts.joinToString(" · ")
     }
@@ -54,23 +70,31 @@ object PiStatusReadout {
     fun tooltip(readouts: List<PiSessionReadout>): String {
         if (readouts.isEmpty()) return "No Pi sessions."
 
-        return readouts.joinToString(" · ", transform = ::shortLine)
+        val running = readouts.filter { it.running }
+        if (running.isEmpty()) return NO_RUNNING_TEXT
+
+        return running.joinToString(" · ", transform = ::shortLine)
     }
 
     /** The tab name, marked when this is the Active Session. */
     fun sessionLabel(readout: PiSessionReadout): String =
         if (readout.active) "• ${readout.tabName}" else readout.tabName
 
-    /** This session's state, or [NO_STATUS] when Pi has not said. */
-    fun stateLabel(readout: PiSessionReadout): String =
-        readout.status?.let { label(it.state) } ?: NO_STATUS
+    /** This session's state, or [NO_STATUS] when Pi has not said, or [NOT_RUNNING] without a Host. */
+    fun stateLabel(readout: PiSessionReadout): String = when {
+        !readout.running -> NOT_RUNNING
+        else -> readout.status?.let { label(it.state) } ?: NO_STATUS
+    }
 
     /**
      * What there is to say beyond the state: Pi's own explanation when it gave one
      * (a dialog title, an error), otherwise what it is doing right now.
+     *
+     * A session with no Host has nothing to say: whatever it last reported belongs to
+     * the run that is over.
      */
     fun detail(readout: PiSessionReadout): String? =
-        readout.status?.let { it.message ?: it.activity }
+        if (!readout.running) null else readout.status?.let { it.message ?: it.activity }
 
     /** `Pi 1: blocked — Allow tool call?`, or just `Pi 2: working`. */
     private fun shortLine(readout: PiSessionReadout): String {
@@ -89,6 +113,8 @@ object PiStatusReadout {
 
     /** The states whose detail belongs in a tooltip: both ask something of the user. */
     private val NEEDS_ATTENTION = setOf(PiStatus.State.BLOCKED, PiStatus.State.ERROR)
+
+    private const val NO_RUNNING_TEXT = "No Pi sessions running."
 
     private val ORDER = listOf(
         PiStatus.State.BLOCKED,
