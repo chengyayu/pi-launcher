@@ -36,8 +36,14 @@ tool window tab; an editor tab was tried and lost (`docs/adr/0007`).
   turns the dashboard from a read-only report into the one UI that does not depend on
   any Host.
 - The registry can no longer be keyed by tab name (ADR 0001): a tab name is a Host's
-  label, while identity has to survive the Host. Identity is assigned when the session
-  starts, not discovered afterwards.
+  label, while identity has to survive the Host.
+- **Identity is read from Pi, not chosen by the plugin.** The plugin first generated the
+  id itself and passed `--session-id`, which works - and makes Pi print "No project
+  session found with id …; creating a new session with that id" on every start, because
+  a new id is by definition not on disk. The status extension now reports Pi's own
+  `getSessionId()`, which the plugin adopts, and nothing is passed at launch. The cost is
+  that identity depends on the same reporter as status: an older Pi that cannot host the
+  extension has neither, where it used to have an identity and no status.
 - ADR 0002 stays valid only for the Terminal-tool-window Host: the reflective
   `createShellWidget` + `Content` path does not exist for an editor tab. A second Host
   needs its own terminal plumbing, and the two coexist until one proves itself.

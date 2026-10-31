@@ -2,6 +2,7 @@ package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
+import com.chengyayu.pilauncher.domain.PiSessionId
 import com.chengyayu.pilauncher.domain.PiSessionReadout
 import com.chengyayu.pilauncher.infrastructure.PiNotifier
 import com.chengyayu.pilauncher.infrastructure.PiStatusChannelProvider
@@ -23,7 +24,7 @@ import java.util.UUID
  */
 internal class PiSessionRegistry(
     private val workingDirectory: () -> String,
-    private val startCommand: (tabName: String, id: String?, extensionPath: String?) -> String,
+    private val startCommand: (extensionPath: String?) -> String,
     private val host: PiSessionHost,
     private val notifier: PiNotifier,
     private val publishCount: (Int) -> Unit,
@@ -31,8 +32,6 @@ internal class PiSessionRegistry(
     private val statusChannels: PiStatusChannelProvider = PiStatusChannelProvider.NONE,
     /** Reopens a parked session on the conversation Pi already stores. */
     private val resumeCommand: (id: String, extensionPath: String?) -> String = { id, _ -> "pi --session $id" },
-    /** A new identity, or null when this Pi cannot be given one. */
-    private val newSessionId: () -> String? = { null },
     private val store: PiSessionStore = PiSessionStore.inMemory(),
     private val commandDispatcher: PiCommandDispatcher = PiCommandDispatcher(),
     private val scheduler: PiScheduler = PiScheduler.swing,
@@ -57,7 +56,12 @@ internal class PiSessionRegistry(
     val readouts: List<PiSessionReadout> get() = snapshot()
 
     init {
-        store.load().sortedBy { it.closedAt }.forEach { parked[it.id] = it }
+        // The state file is data from outside the plugin's control, and this id ends up in
+        // a `pi --session <id>` command line: only what Pi itself would accept survives.
+        store.load()
+            .filter { PiSessionId.isValid(it.id) }
+            .sortedBy { it.closedAt }
+            .forEach { parked[it.id] = it }
         host.onTabSelected(::selectByName)
         host.onTabClosed(::onTabClosed)
         host.onTabRenamed(::onTabRenamed)
@@ -73,10 +77,8 @@ internal class PiSessionRegistry(
 
     /** Start a session in a fresh Host and make it active. */
     fun newSession() {
-        val tabName = nextTabName()
-        val id = newSessionId()
-        startRun(tabName = tabName, id = id) { extensionPath ->
-            startCommand(tabName, id, extensionPath)
+        startRun(tabName = nextTabName(), id = null) { extensionPath ->
+            startCommand(extensionPath)
         }
     }
 
@@ -92,12 +94,18 @@ internal class PiSessionRegistry(
             return
         }
 
-        val record = parked.remove(id) ?: return
+        // Look before taking: a Host can refuse to open, and the record must survive that.
+        val record = parked[id] ?: return
         val tabName = if (record.displayName.isFree()) record.displayName else nextTabName()
         startRun(tabName = tabName, id = id) { extensionPath ->
             resumeCommand(id, extensionPath)
-        }
+        } ?: return
+
+        // Now that it is running, it is no longer parked - the session is both at once
+        // until this line, so the dashboard is told again rather than left with a duplicate.
+        parked.remove(id)
         persist()
+        publishState()
     }
 
     fun submitText(text: String) = active?.submitText(text)
@@ -131,10 +139,16 @@ internal class PiSessionRegistry(
     private fun sessionNamed(tabName: String): PiSession? =
         sessions.values.firstOrNull { it.tabName == tabName }
 
-    private fun keyOf(session: PiSession): String = session.id ?: session.tabName
+    /** Immutable per run, which is what a map key has to be: the id arrives later, the name can change. */
+    private fun keyOf(session: PiSession): String = session.channelId
 
-    /** Opens a Host and starts Pi in it: one run, on a new or an existing identity. */
-    private fun startRun(tabName: String, id: String?, command: (extensionPath: String?) -> String) {
+    /**
+     * Opens a Host and starts Pi in it: one run, on a new or an existing identity.
+     *
+     * Returns the session, or null when no Host could be opened - the caller decides what
+     * that means for the identity it was reopening.
+     */
+    private fun startRun(tabName: String, id: String?, command: (extensionPath: String?) -> String): PiSession? {
         // Unique per run: a closed tab's directory is not reused by the next one.
         val channelId = "$tabName-${UUID.randomUUID().toString().take(8)}"
         val channel = statusChannels.open(channelId)
@@ -144,7 +158,7 @@ internal class PiSessionRegistry(
             // The user is notified, so this is not an IDE internal error.
             logger.warn("Failed to launch Pi in $tabName", e)
             notifier.error("Failed to start Pi: ${e.message}")
-            return
+            return null
         }
 
         val session = PiSession(
@@ -166,6 +180,7 @@ internal class PiSessionRegistry(
         publishState()
         session.start()
         logger.info("Pi session $id started in $tabName")
+        return session
     }
 
     private fun snapshot(): List<PiSessionReadout> =

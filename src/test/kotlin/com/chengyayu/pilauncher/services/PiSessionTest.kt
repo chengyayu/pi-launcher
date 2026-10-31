@@ -1,6 +1,7 @@
 package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
+import com.chengyayu.pilauncher.domain.PiSessionReport
 import com.chengyayu.pilauncher.domain.PiStatus
 import com.chengyayu.pilauncher.infrastructure.PiStatusSource
 import com.chengyayu.pilauncher.infrastructure.PiTerminal
@@ -269,7 +270,10 @@ class PiSessionTest {
         @Volatile
         var status: PiStatus? = null
 
-        override fun read(): PiStatus? = status
+        @Volatile
+        var identity: String? = null
+
+        override fun read(): PiSessionReport? = PiSessionReport(status, identity)
     }
 
     private class FakeTerminal : PiTerminal {

@@ -1,7 +1,10 @@
 package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
+import com.chengyayu.pilauncher.domain.PiSessionReport
 import com.chengyayu.pilauncher.infrastructure.PiNotifier
+import com.chengyayu.pilauncher.infrastructure.PiStatusChannel
+import com.chengyayu.pilauncher.infrastructure.PiStatusChannelProvider
 import com.chengyayu.pilauncher.infrastructure.PiTerminal
 import com.chengyayu.pilauncher.infrastructure.PiSessionHost
 import com.chengyayu.pilauncher.util.PiScheduler
@@ -22,14 +25,16 @@ class PiSessionRegistryTest {
     private val notifier = FakeNotifier()
     private val counts = CopyOnWriteArrayList<Int>()
 
+    private val ID = "6f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+
     /** Advances 10s per read, so every poll is past the startup grace. */
     private var tick = 0L
 
     private val polls = mutableListOf<() -> Unit>()
 
-    private val startCommands = CopyOnWriteArrayList<StartRequest>()
+    private val startCommands = CopyOnWriteArrayList<String?>()
 
-    private val resumeCommands = CopyOnWriteArrayList<StartRequest>()
+    private val resumeCommands = CopyOnWriteArrayList<String>()
 
     private val pollScheduler = PiScheduler { _, repeat, action ->
         if (repeat) polls += action else action()
@@ -39,30 +44,38 @@ class PiSessionRegistryTest {
     /** One call = one observation per session; two in a row register an exit. */
     private fun runPolls() = polls.forEach { it() }
 
+    /** A Pi that reports [identity] for every session, the way the status extension does. */
+    private fun channels(identity: String?): PiStatusChannelProvider = object : PiStatusChannelProvider {
+        override fun open(sessionId: String): PiStatusChannel = object : PiStatusChannel {
+            override val extensionPath: String = "/tmp/status.ts"
+            override fun read(): PiSessionReport = PiSessionReport(status = null, identity = identity)
+        }
+
+        override fun close(sessionId: String) = Unit
+    }
+
     private fun newRegistry(
-        ids: () -> String? = { null },
+        statusChannels: PiStatusChannelProvider = PiStatusChannelProvider.NONE,
         store: PiSessionStore = PiSessionStore.inMemory()
     ) = PiSessionRegistry(
         workingDirectory = { "/work" },
-        startCommand = { tabName, id, extensionPath ->
-            startCommands += StartRequest(tabName, id, extensionPath)
+        startCommand = { extensionPath ->
+            startCommands += extensionPath
             "pi --no-themes"
         },
         resumeCommand = { id, extensionPath ->
-            resumeCommands += StartRequest("", id, extensionPath)
+            resumeCommands += id
             "pi --session $id"
         },
-        newSessionId = ids,
         store = store,
         host = provider,
         notifier = notifier,
         publishCount = { counts += it },
+        statusChannels = statusChannels,
         commandDispatcher = PiCommandDispatcher(settleMillis = 0, scheduler = ImmediateScheduler),
         scheduler = pollScheduler,
         clock = { tick += 10_000; tick }
     )
-
-    private data class StartRequest(val tabName: String, val id: String?, val extensionPath: String?)
 
     @Test
     fun `launch with no sessions creates a tab and starts pi`() {
@@ -330,52 +343,54 @@ class PiSessionRegistryTest {
     // ---- identity and parked sessions (docs/adr/0006) ----------------------
 
     @Test
-    fun `a new session is given the identity it starts with`() {
-        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+    fun `the identity Pi reports becomes the session's`() {
+        newRegistry(statusChannels = channels(ID)).use { registry ->
             registry.launch()
+            runPolls()
 
-            assertEquals("pilaunch-1234abcd", startCommands.single().id, "Pi is told the identity")
-            assertEquals("pilaunch-1234abcd", registry.readouts.single().id)
+            assertEquals(ID, registry.readouts.single().id)
         }
     }
 
     @Test
-    fun `a Pi without identity support starts an unidentified session`() {
-        newRegistry(ids = { null }).use { registry ->
+    fun `a Pi that cannot report an identity starts an unidentified session`() {
+        newRegistry(statusChannels = channels(null)).use { registry ->
             registry.launch()
+            runPolls()
 
-            assertNull(startCommands.single().id, "no flag may be passed")
             assertNull(registry.readouts.single().id)
         }
     }
 
     @Test
     fun `closing a Host parks the conversation instead of forgetting it`() {
-        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+        newRegistry(statusChannels = channels(ID)).use { registry ->
             registry.launch()
+            runPolls()
             provider.close("Pi 1")
 
             assertEquals(0, registry.runningCount, "the run is over")
             val parked = registry.readouts.single()
             assertFalse(parked.running, "the session is still there, without a Host")
             assertEquals("Pi 1", parked.tabName)
-            assertEquals("pilaunch-1234abcd", parked.id)
+            assertEquals(ID, parked.id)
         }
     }
 
     @Test
     fun `a parked session is reopened on the conversation Pi stores`() {
         val store = PiSessionStore.inMemory()
-        newRegistry(ids = { "pilaunch-1234abcd" }, store = store).use { registry ->
+        newRegistry(statusChannels = channels(ID), store = store).use { registry ->
             registry.launch()
+            runPolls()
             provider.close("Pi 1")
 
-            registry.resume("pilaunch-1234abcd")
+            registry.resume(ID)
 
             assertEquals(1, registry.runningCount)
-            assertEquals("pilaunch-1234abcd", resumeCommands.single().id)
+            assertEquals(ID, resumeCommands.single())
             assertEquals(
-                "pi --session pilaunch-1234abcd",
+                "pi --session $ID",
                 provider.created.last().terminal.sent.single().text,
                 "the resumed run continues the conversation, it does not start a new one"
             )
@@ -383,11 +398,38 @@ class PiSessionRegistryTest {
         }
     }
 
+    /**
+     * Reopening needs a Host, and a Host can refuse. The conversation is Pi's and is
+     * still on disk, so a failure here may not cost the plugin's record of it.
+     */
+    @Test
+    fun `a Host that refuses to open leaves the session to be reopened again`() {
+        newRegistry(statusChannels = channels(ID)).use { registry ->
+            registry.launch()
+            runPolls()
+            provider.close("Pi 1")
+
+            provider.failOnCreate = true
+            registry.resume(ID)
+
+            val stillParked = registry.readouts.single()
+            assertFalse(stillParked.running, "nothing opened, so nothing is running")
+            assertEquals(ID, stillParked.id)
+
+            provider.failOnCreate = false
+            registry.resume(ID)
+
+            assertTrue(registry.readouts.single().running, "the second attempt must work")
+        }
+    }
+
     @Test
     fun `resuming a running session only focuses it`() {
-        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+        newRegistry(statusChannels = channels(ID)).use { registry ->
             registry.launch()
-            registry.resume("pilaunch-1234abcd")
+            runPolls()
+
+            registry.resume(ID)
 
             assertEquals(1, provider.created.size, "a live session is not reopened")
             assertEquals(1, provider.focusCount)
@@ -397,12 +439,13 @@ class PiSessionRegistryTest {
     @Test
     fun `parked sessions are remembered across registries`() {
         val store = PiSessionStore.inMemory()
-        newRegistry(ids = { "pilaunch-1234abcd" }, store = store).use { first ->
+        newRegistry(statusChannels = channels(ID), store = store).use { first ->
             first.launch()
+            runPolls()
             provider.close("Pi 1")
         }
 
-        newRegistry(ids = { "pilaunch-1234abcd" }, store = store).use { second ->
+        newRegistry(statusChannels = channels(null), store = store).use { second ->
             assertEquals(listOf("Pi 1"), second.readouts.map { it.tabName })
             assertFalse(second.readouts.single().running)
         }
@@ -410,25 +453,30 @@ class PiSessionRegistryTest {
 
     @Test
     fun `renaming a parked session changes only its label`() {
-        newRegistry(ids = { "pilaunch-1234abcd" }).use { registry ->
+        newRegistry(statusChannels = channels(ID)).use { registry ->
             registry.launch()
+            runPolls()
             provider.close("Pi 1")
 
-            registry.renameParked("pilaunch-1234abcd", "api work")
+            registry.renameParked(ID, "api work")
 
             val parked = registry.readouts.single()
             assertEquals("api work", parked.tabName)
-            assertEquals("pilaunch-1234abcd", parked.id, "the identity is not the label")
+            assertEquals(ID, parked.id, "the identity is not the label")
         }
     }
 
     @Test
-    fun `a session without an identity is not parked`() {
-        newRegistry(ids = { null }).use { registry ->
+    fun `an id this plugin did not create is never handed to Pi`() {
+        newRegistry(statusChannels = channels(ID)).use { registry ->
             registry.launch()
+            runPolls()
             provider.close("Pi 1")
 
-            assertTrue(registry.readouts.isEmpty(), "nothing to reopen")
+            registry.resume("--session-id evil; rm -rf /")
+
+            assertEquals(1, provider.created.size, "no Host may be opened for a foreign id")
+            assertTrue(resumeCommands.isEmpty())
         }
     }
 

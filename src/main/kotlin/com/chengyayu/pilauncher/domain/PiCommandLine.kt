@@ -30,14 +30,15 @@ object PiCommandLine {
      */
     private const val NO_IMAGES = "PI_IMAGE_PROTOCOL=none"
 
-    /** Chooses the identity of a new Pi Session (`docs/adr/0006`). */
-    private const val SESSION_ID = "--session-id"
-
     /** Opens the conversation Pi already stores under that identity. */
     private const val SESSION = "--session"
 
     /**
-     * Starts a new Pi Session, optionally with an identity of the plugin's choosing.
+     * Starts a new Pi Session.
+     *
+     * No `--session-id`: Pi prints "No project session found with id …; creating a new
+     * session with that id" for every id it has not seen, which is every new session. The
+     * identity is read back from the session once it has started (`docs/adr/0006`).
      *
      * No `--name`: Pi shows that name in its footer, so a session started from the IDE
      * would read `folder • Pi 1` where the same session started in a terminal reads just
@@ -47,7 +48,6 @@ object PiCommandLine {
     fun render(
         options: PiLaunchOptions,
         extensionPath: String? = null,
-        sessionId: String? = null,
         windows: Boolean = System.getProperty("os.name").orEmpty().startsWith("Windows")
     ): String {
         val parts = mutableListOf(command(options, windows))
@@ -55,11 +55,6 @@ object PiCommandLine {
         extensionPath?.takeIf { it.isNotBlank() }?.let {
             parts += EXTENSION
             parts += quote(it)
-        }
-
-        sessionId?.takeIf { it.isNotBlank() }?.let {
-            parts += SESSION_ID
-            parts += it
         }
 
         options.model?.takeIf { it.isNotBlank() }?.let {

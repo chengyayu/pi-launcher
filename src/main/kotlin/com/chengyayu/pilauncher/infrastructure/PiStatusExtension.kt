@@ -1,6 +1,6 @@
 package com.chengyayu.pilauncher.infrastructure
 
-import com.chengyayu.pilauncher.domain.PiStatus
+import com.chengyayu.pilauncher.domain.PiSessionReport
 import com.chengyayu.pilauncher.domain.PiStatusReport
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.CapturingProcessHandler
@@ -157,7 +157,7 @@ internal class PiStatusExtension(
     ) : PiStatusChannel {
 
         /** The extension writes atomically, so a read never sees half a report. */
-        override fun read(): PiStatus? = try {
+        override fun read(): PiSessionReport? = try {
             if (statusFile.exists()) PiStatusReport.parse(statusFile.readText()) else null
         } catch (_: Exception) {
             null

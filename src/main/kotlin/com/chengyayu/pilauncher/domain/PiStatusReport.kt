@@ -16,7 +16,8 @@ import java.util.Base64
  * ```
  *
  * `message` is Pi's own words about the state, `activity` is what it is doing right
- * now; a session can have either, both, or neither.
+ * now; a session can have either, both, or neither. `id` is Pi's identity for the
+ * conversation, present once the session has started.
  *
  * Pure string handling, so the wire format is unit testable without Pi.
  */
@@ -24,6 +25,9 @@ object PiStatusReport {
 
     /** Written next to the extension, so `__dirname` locates it. */
     const val FILE_NAME = "status"
+
+    /** Pi's own id for the conversation, reported alongside the state (`docs/adr/0006`). */
+    private const val IDENTITY = "id"
 
     private const val STATE = "state"
     private const val KIND = "kind"
@@ -36,7 +40,7 @@ object PiStatusReport {
      * Unknown keys are ignored rather than rejected: a newer extension must not
      * blind an older plugin.
      */
-    fun parse(text: String): PiStatus? {
+    fun parse(text: String): PiSessionReport? {
         val fields = linkedMapOf<String, String>()
         text.lineSequence().forEach { line ->
             // The first '=' separates key from value, so base64 padding survives.
@@ -47,11 +51,14 @@ object PiStatusReport {
 
         val state = fields[STATE]?.let(PiStatus.State::fromWire) ?: return null
 
-        return PiStatus(
-            state = state,
-            kind = fields[KIND]?.let(PiStatus.Kind::fromWire),
-            message = fields[MESSAGE]?.let(::decodeMessage),
-            activity = fields[ACTIVITY]?.let(::decodeMessage)
+        return PiSessionReport(
+            status = PiStatus(
+                state = state,
+                kind = fields[KIND]?.let(PiStatus.Kind::fromWire),
+                message = fields[MESSAGE]?.let(::decodeMessage),
+                activity = fields[ACTIVITY]?.let(::decodeMessage)
+            ),
+            identity = fields[IDENTITY]?.takeIf { it.isNotBlank() }
         )
     }
 

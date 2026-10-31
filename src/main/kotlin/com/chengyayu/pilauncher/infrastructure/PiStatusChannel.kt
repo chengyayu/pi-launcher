@@ -1,10 +1,10 @@
 package com.chengyayu.pilauncher.infrastructure
 
-import com.chengyayu.pilauncher.domain.PiStatus
+import com.chengyayu.pilauncher.domain.PiSessionReport
 
-/** Reads the Session Status Pi last reported; null when it has reported none. */
+/** Reads what Pi last reported - its state and its identity; null when it reported nothing. */
 fun interface PiStatusSource {
-    fun read(): PiStatus?
+    fun read(): PiSessionReport?
 }
 
 /**

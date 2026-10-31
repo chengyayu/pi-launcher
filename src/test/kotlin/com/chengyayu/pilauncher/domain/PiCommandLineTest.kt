@@ -12,9 +12,8 @@ class PiCommandLineTest {
 
     private fun render(
         options: PiLaunchOptions = PiLaunchOptions(),
-        extensionPath: String? = null,
-        sessionId: String? = null
-    ) = PiCommandLine.render(options, extensionPath, sessionId, windows = false)
+        extensionPath: String? = null
+    ) = PiCommandLine.render(options, extensionPath, windows = false)
 
     private fun resume(
         options: PiLaunchOptions = PiLaunchOptions(),
@@ -86,23 +85,20 @@ class PiCommandLineTest {
         assertEquals("$noImages pi --no-themes", render(extensionPath = "  "))
     }
 
+    /**
+     * No `--session-id`: Pi warns "No project session found with id …" for every id it has
+     * not seen, which is every new session, and the warning lands in the terminal before
+     * the interface paints. The identity is read back once Pi has started.
+     */
     @Test
-    fun `chooses the identity Pi stores the conversation under`() {
-        assertEquals(
-            "$noImages pi --session-id pilaunch-0a1b2c3d --no-themes",
-            render(sessionId = "pilaunch-0a1b2c3d")
-        )
-    }
-
-    @Test
-    fun `omits the identity when this Pi cannot be given one`() {
-        assertEquals("$noImages pi --no-themes", render(sessionId = null))
+    fun `chooses no identity, so Pi starts without a warning`() {
+        assertFalse(render().contains("--session-id"))
     }
 
     /** Pi shows its session name in the footer; a session started here must look the same. */
     @Test
     fun `names nothing, so the session looks like one started in a terminal`() {
-        assertFalse(render(sessionId = "pilaunch-0a1b2c3d").contains("--name"))
+        assertFalse(render().contains("--name"))
     }
 
     @Test

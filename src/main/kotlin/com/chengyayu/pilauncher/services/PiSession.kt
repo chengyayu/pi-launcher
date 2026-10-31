@@ -2,6 +2,7 @@ package com.chengyayu.pilauncher.services
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
+import com.chengyayu.pilauncher.domain.PiSessionId
 import com.chengyayu.pilauncher.domain.PiStatus
 import com.chengyayu.pilauncher.infrastructure.PiStatusSource
 import com.chengyayu.pilauncher.infrastructure.PiTerminal
@@ -24,10 +25,11 @@ internal class PiSession(
     @Volatile
     var tabName: String,
     /**
-     * Pi's identity for this conversation, or null when this Pi cannot be given one.
-     * It outlives this run; [channelId] does not (`docs/adr/0006`).
+     * Pi's identity for this conversation: the id a resumed session already has, or the
+     * one Pi reports once it has started (`docs/adr/0006`). It outlives this run;
+     * [channelId] does not.
      */
-    val id: String?,
+    id: String?,
     /** The status channel's directory name: unique per run, discarded when the run ends. */
     val channelId: String,
     private val terminal: PiTerminal,
@@ -41,6 +43,10 @@ internal class PiSession(
 ) : Disposable {
 
     private val logger = Logger.getInstance(PiSession::class.java)
+
+    @Volatile
+    var id: String? = id
+        private set
 
     @Volatile
     private var exited = false
@@ -134,12 +140,28 @@ internal class PiSession(
         statusCheck = scheduler.schedule(STATUS_POLL_INTERVAL_MILLIS, repeat = true) {
             if (exited) return@schedule
 
-            val reported = source.read() ?: return@schedule
-            if (reported == status) return@schedule
+            val report = source.read() ?: return@schedule
+            val learned = adoptIdentity(report.identity)
 
-            status = reported
+            if (report.status == status && !learned) return@schedule
+
+            status = report.status
             onStatusChanged(this)
         }
+    }
+
+    /**
+     * Takes Pi's identity the first time Pi says it, and never again.
+     *
+     * The id is what the dashboard reopens a closed session with, so it has to be the one
+     * Pi stored the conversation under; a later report must not be able to change it.
+     */
+    private fun adoptIdentity(reported: String?): Boolean {
+        if (id != null || reported == null) return false
+        if (!PiSessionId.isValid(reported)) return false
+
+        id = reported
+        return true
     }
 
     override fun dispose() {

@@ -7,12 +7,10 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.chengyayu.pilauncher.domain.PiCommandLine
-import com.chengyayu.pilauncher.domain.PiSessionId
 import com.chengyayu.pilauncher.domain.PiSessionReadout
 import com.chengyayu.pilauncher.infrastructure.IdePiNotifier
 import com.chengyayu.pilauncher.infrastructure.ToolWindowSessionHost
 import com.chengyayu.pilauncher.infrastructure.PiSessionHost
-import com.chengyayu.pilauncher.infrastructure.PiSessionIdProbe
 import com.chengyayu.pilauncher.infrastructure.PiStatusExtension
 import com.chengyayu.pilauncher.infrastructure.projectKey
 import java.nio.file.Path
@@ -37,22 +35,15 @@ class PiSessionService(private val project: Project) : Disposable {
         probeCache = ApplicationPiStatusProbeCache.getInstance()
     )
 
-    /** Whether a Pi Session can be given an identity (`docs/adr/0006`). */
-    private val sessionIds = PiSessionIdProbe(
-        piCommand = { piCommand() },
-        cache = ApplicationPiSessionIdProbeCache.getInstance()
-    )
-
     private val registry = PiSessionRegistry(
         workingDirectory = { project.basePath ?: System.getProperty("user.home") },
         // Settings are a snapshot taken when a session starts.
-        startCommand = { _, id, extensionPath ->
-            PiCommandLine.render(piLaunchOptions(), extensionPath, sessionId = id)
+        startCommand = { extensionPath ->
+            PiCommandLine.render(piLaunchOptions(), extensionPath)
         },
         resumeCommand = { id, extensionPath ->
             PiCommandLine.resume(piLaunchOptions(), id, extensionPath)
         },
-        newSessionId = { if (sessionIds.isSupported()) PiSessionId.new() else null },
         store = PersistentPiSessionStore.getInstance(project),
         host = ToolWindowSessionHost(project),
         notifier = IdePiNotifier(project),
@@ -69,10 +60,7 @@ class PiSessionService(private val project: Project) : Disposable {
         // Both answers cost a subprocess, so they are asked in the background. A
         // session launched before they arrive simply reports Inferred Status and has
         // no identity to come back to.
-        ApplicationManager.getApplication().executeOnPooledThread {
-            statusChannels.probe()
-            sessionIds.probe()
-        }
+        ApplicationManager.getApplication().executeOnPooledThread { statusChannels.probe() }
     }
 
     private fun piLaunchOptions() = PiSettings.getInstance().state.toLaunchOptions()

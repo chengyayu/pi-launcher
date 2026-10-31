@@ -30,6 +30,10 @@
   inline images, but Pi's protocol detection guessed it could and wrote image data as a
   sequence the terminal cannot parse - logging a warning per chunk and swallowing the
   keystrokes after it. Sessions are started with `PI_IMAGE_PROTOCOL=none`.
+- **Starting a session no longer prints a warning.** The plugin used to choose the
+  session id itself and pass `--session-id`, which made Pi warn "No project session found
+  with id …; creating a new session with that id" on every start. The identity is now read
+  back from Pi instead of invented.
 - **The session footer no longer says `Pi 1`.** The plugin used to name every session
   with `--name`, which Pi shows in its footer; a session started here looked different
   from the same session started in a terminal. The IDE label is the tab.

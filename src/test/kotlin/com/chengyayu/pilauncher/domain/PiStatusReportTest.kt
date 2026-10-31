@@ -11,20 +11,34 @@ import kotlin.test.assertNull
  */
 class PiStatusReportTest {
 
+    /** Pi's own id for the conversation, read back so a closed session can be reopened. */
+    @Test
+    fun `decodes the session id Pi reports`() {
+        val report = PiStatusReport.parse("state=idle\nid=6f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f\n")
+
+        assertEquals("6f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f", report?.identity)
+        assertEquals(PiStatus.State.IDLE, report?.status?.state)
+    }
+
+    @Test
+    fun `a report written before the session started has no identity`() {
+        assertNull(PiStatusReport.parse("state=working\n")?.identity)
+    }
+
     @Test
     fun `decodes a bare state`() {
-        val status = PiStatusReport.parse("state=working\n")
+        val report = PiStatusReport.parse("state=working\n")
 
-        assertEquals(PiStatus.State.WORKING, status?.state)
-        assertNull(status?.kind)
-        assertNull(status?.message)
+        assertEquals(PiStatus.State.WORKING, report?.status?.state)
+        assertNull(report?.status?.kind)
+        assertNull(report?.status?.message)
     }
 
     @Test
     fun `decodes a state with no activity`() {
-        val status = PiStatusReport.parse("state=idle\n")
+        val report = PiStatusReport.parse("state=idle\n")
 
-        assertNull(status?.activity)
+        assertNull(report?.status?.activity)
     }
 
     @Test
@@ -38,19 +52,19 @@ class PiStatusReportTest {
         )
 
         states.forEach { (wire, expected) ->
-            assertEquals(expected, PiStatusReport.parse("state=$wire\n")?.state, wire)
+            assertEquals(expected, PiStatusReport.parse("state=$wire\n")?.status?.state, wire)
         }
     }
 
     @Test
     fun `decodes a blocking prompt with its kind and title`() {
-        val status = PiStatusReport.parse(
+        val report = PiStatusReport.parse(
             "state=blocked\nkind=confirm\nmessage=${base64("Allow tool call?")}\n"
         )
 
-        assertEquals(PiStatus.State.BLOCKED, status?.state)
-        assertEquals(PiStatus.Kind.CONFIRM, status?.kind)
-        assertEquals("Allow tool call?", status?.message)
+        assertEquals(PiStatus.State.BLOCKED, report?.status?.state)
+        assertEquals(PiStatus.Kind.CONFIRM, report?.status?.kind)
+        assertEquals("Allow tool call?", report?.status?.message)
     }
 
     @Test
@@ -64,57 +78,57 @@ class PiStatusReportTest {
         )
 
         kinds.forEach { (wire, expected) ->
-            assertEquals(expected, PiStatusReport.parse("state=blocked\nkind=$wire\n")?.kind, wire)
+            assertEquals(expected, PiStatusReport.parse("state=blocked\nkind=$wire\n")?.status?.kind, wire)
         }
     }
 
     @Test
     fun `decodes a multi-byte message`() {
-        val status = PiStatusReport.parse("state=blocked\nmessage=${base64("继续执行吗？")}\n")
+        val report = PiStatusReport.parse("state=blocked\nmessage=${base64("继续执行吗？")}\n")
 
-        assertEquals("继续执行吗？", status?.message)
+        assertEquals("继续执行吗？", report?.status?.message)
     }
 
     /** Base64 padding contains '=', which must not be read as a key separator. */
     @Test
     fun `decodes a message whose padding looks like a separator`() {
-        assertEquals("a", PiStatusReport.parse("state=working\nmessage=${base64("a")}\n")?.message)
+        assertEquals("a", PiStatusReport.parse("state=working\nmessage=${base64("a")}\n")?.status?.message)
     }
 
     @Test
     fun `decodes what Pi is doing while it works`() {
-        val status = PiStatusReport.parse("state=working\nactivity=${base64("bash: go build ./...")}\n")
+        val report = PiStatusReport.parse("state=working\nactivity=${base64("bash: go build ./...")}\n")
 
-        assertEquals(PiStatus.State.WORKING, status?.state)
-        assertEquals("bash: go build ./...", status?.activity)
-        assertNull(status?.message, "an activity is not an explanation")
+        assertEquals(PiStatus.State.WORKING, report?.status?.state)
+        assertEquals("bash: go build ./...", report?.status?.activity)
+        assertNull(report?.status?.message, "an activity is not an explanation")
     }
 
     @Test
     fun `keeps an explanation and an activity apart`() {
-        val status = PiStatusReport.parse(
+        val report = PiStatusReport.parse(
             "state=blocked\nkind=confirm\nmessage=${base64("Allow tool call?")}\nactivity=${base64("bash: rm -rf build")}\n"
         )
 
-        assertEquals("Allow tool call?", status?.message)
-        assertEquals("bash: rm -rf build", status?.activity)
+        assertEquals("Allow tool call?", report?.status?.message)
+        assertEquals("bash: rm -rf build", report?.status?.activity)
     }
 
     @Test
     fun `ignores unknown keys so a newer extension still works`() {
-        val status = PiStatusReport.parse("state=error\nkind=x\nfuture=1\nmessage=${base64("boom")}\n")
+        val report = PiStatusReport.parse("state=error\nkind=x\nfuture=1\nmessage=${base64("boom")}\n")
 
-        assertEquals(PiStatus.State.ERROR, status?.state)
-        assertEquals("boom", status?.message)
+        assertEquals(PiStatus.State.ERROR, report?.status?.state)
+        assertEquals("boom", report?.status?.message)
     }
 
     @Test
     fun `keeps the state when the message is not decodable`() {
-        val status = PiStatusReport.parse("state=blocked\nkind=input\nmessage=!!!not-base64!!!\n")
+        val report = PiStatusReport.parse("state=blocked\nkind=input\nmessage=!!!not-base64!!!\n")
 
-        assertEquals(PiStatus.State.BLOCKED, status?.state)
-        assertEquals(PiStatus.Kind.INPUT, status?.kind)
-        assertNull(status?.message)
+        assertEquals(PiStatus.State.BLOCKED, report?.status?.state)
+        assertEquals(PiStatus.Kind.INPUT, report?.status?.kind)
+        assertNull(report?.status?.message)
     }
 
     /** A half-written or truncated file must read as "no report", never as a state. */
@@ -130,9 +144,9 @@ class PiStatusReportTest {
 
     @Test
     fun `tolerates blank lines and spaces around keys`() {
-        val status = PiStatusReport.parse("\n state = done \n\n")
+        val report = PiStatusReport.parse("\n state = done \n\n")
 
-        assertEquals(PiStatus.State.DONE, status?.state)
+        assertEquals(PiStatus.State.DONE, report?.status?.state)
     }
 
     private fun base64(text: String): String =

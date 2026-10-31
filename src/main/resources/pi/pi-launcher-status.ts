@@ -19,6 +19,13 @@ import { dirname, join } from "node:path";
 
 type State = "idle" | "working" | "blocked" | "done" | "error";
 
+/**
+ * The identity Pi assigned this conversation, reported so the plugin can find it again
+ * after the tab is closed. Learned from Pi rather than chosen by the plugin: passing
+ * `--session-id` for an id Pi has never seen makes it print a warning on every start.
+ */
+let sessionId: string | undefined;
+
 /** Where the plugin reads this session's state. */
 const STATUS_FILE =
   process.env.PI_LAUNCHER_STATUS_FILE ?? join(__dirname, "status");
@@ -48,6 +55,7 @@ function toolActivity(toolName: unknown, args: unknown): string {
  */
 function report(state: State, kind?: string, message?: string, activity?: string): void {
   const lines = [`state=${state}`];
+  if (sessionId) lines.push(`id=${sessionId}`);
   if (kind) lines.push(`kind=${kind}`);
   if (message) {
     lines.push(`message=${Buffer.from(message, "utf8").toString("base64")}`);
@@ -74,8 +82,21 @@ function clear(): void {
   }
 }
 
+function identityOf(ctx: any): string | undefined {
+  try {
+    const id = ctx?.sessionManager?.getSessionId?.();
+    return typeof id === "string" && id.length > 0 ? id : undefined;
+  } catch {
+    // An older Pi without the accessor simply reports no identity.
+    return undefined;
+  }
+}
+
 export default function (pi: any): void {
-  pi.on("session_start", () => report("idle"));
+  pi.on("session_start", (_event: any, ctx: any) => {
+    sessionId = identityOf(ctx);
+    report("idle");
+  });
 
   // Pi counts as busy from the moment a run starts, before the model is called.
   pi.on("agent_start", () => report("working"));

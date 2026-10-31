@@ -20,7 +20,7 @@ One-click [Pi coding agent](https://pi.dev) launcher for JetBrains IDEs — open
 - **Live session status** — The status bar shows what Pi is doing (`working`, `blocked`, `done`, `error`, `idle`), not how many tabs happen to be open
 - **Session Dashboard** — One editor tab listing every session with its state and Pi's own words: the dialog it is blocked on, an error's first line, the tool call it is running
 - **Rename a tab, rename the session** — The dashboard and the tooltip use the tab's display name, so `Pi 1` renamed to `api work` is `api work` everywhere
-- **Close the panel, keep the conversation** — every session is started under an identity of the plugin's own choosing (`--session-id`), so closing its tab ends the run, not the work: the dashboard lists it as `not running` and reopens it on Pi's own session file
+- **Close the panel, keep the conversation** — the plugin reads back the identity Pi gives each session, so closing its tab ends the run, not the work: the dashboard lists it as `not running` and reopens it on Pi's own session file
 - **Model configuration** — Pick model and thinking level from `~/.pi/agent/models.json`
 
 All sessions share the same settings; the command line is a snapshot taken when a session starts.
@@ -166,14 +166,13 @@ src/main/kotlin/com/chengyayu/pilauncher/
 │   ├── PiCommandLine.kt           # Renders options into the CLI command
 │   ├── PiFileReference.kt         # @path#L10-25 references
 │   ├── PiStatus.kt                # Session Status: a state, a message, an activity
-│   ├── PiSessionId.kt              # The identity a Pi Session is started under
+│   ├── PiSessionId.kt              # Whether an id Pi reported may reach a command line
 │   ├── PiStatusReport.kt          # Decodes what the Pi-side extension writes
 │   ├── PiStatusReadout.kt         # Wording shared by the status bar and dashboard
 │   └── PiModel.kt                 # Model advertised by the Pi CLI
 ├── infrastructure/                # Adapters to the IDE and the filesystem
 │   ├── PiTerminal.kt              # Terminal + Session Host interfaces (fakeable)
 │   ├── ToolWindowSessionHost.kt   # Reflective Terminal tool window access
-│   ├── PiSessionIdProbe.kt        # Asks Pi whether it accepts --session-id
 │   ├── PiStatusChannel.kt         # Per-session status source (fakeable)
 │   ├── PiStatusExtension.kt       # Hosts the Pi-side extension, reads its reports
 │   ├── PiModelRepository.kt       # Reads ~/.pi/agent/models.json

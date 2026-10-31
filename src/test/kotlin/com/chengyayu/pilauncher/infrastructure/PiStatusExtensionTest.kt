@@ -77,11 +77,20 @@ class PiStatusExtensionTest {
         val channel = assertNotNull(extension().open("Pi 1-abcd"))
         report(channel, "state=blocked\nkind=confirm\nmessage=${base64("Allow tool call?")}\n")
 
-        val status = channel.read()
+        val report = channel.read()
 
-        assertEquals(PiStatus.State.BLOCKED, status?.state)
-        assertEquals(PiStatus.Kind.CONFIRM, status?.kind)
-        assertEquals("Allow tool call?", status?.message)
+        assertEquals(PiStatus.State.BLOCKED, report?.status?.state)
+        assertEquals(PiStatus.Kind.CONFIRM, report?.status?.kind)
+        assertEquals("Allow tool call?", report?.status?.message)
+    }
+
+    /** The identity travels in the same file as the state (`docs/adr/0006`). */
+    @Test
+    fun `reads the session id Pi reported`() {
+        val channel = assertNotNull(extension().open("Pi 1-abcd"))
+        report(channel, "state=idle\nid=6f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f\n")
+
+        assertEquals("6f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f", channel.read()?.identity)
     }
 
     @Test
